@@ -72,56 +72,96 @@ public sealed class User : Entity
     /// university's allowlist - this factory validates shape, not membership, because the
     /// Domain layer cannot load the University row itself.
     /// </remarks>
-    ///
-    /// TODO: Implement.
-    /// Acceptance criteria:
-    ///   - universityId must not be Guid.Empty.
-    ///   - Email normalised via NormaliseEmail.
-    ///   - Name required, trimmed, max 100. Major optional, max 100.
-    ///   - Year null or 1..10; anything else throws.
+    /// <exception cref="DomainException">If any field is blank or out of range.</exception>
     public static User Create(
         Guid universityId,
         string email,
         string name,
         string? major = null,
         int? year = null)
-        => throw new NotImplementedException();
+    {
+        return new User(
+            NewId(),
+            Guard.NotEmpty(universityId),
+            NormaliseEmail(email),
+            Guard.NotEmptyAndAtMost(name, 100),
+            Guard.OptionalAtMost(major, 100),
+            ValidateYear(year));
+    }
 
     /// <summary>Updates the parts of a profile a student is allowed to change.</summary>
-    /// <remarks>Email and UniversityId are deliberately absent - both are verification facts.</remarks>
-    ///
-    /// TODO: Implement using the same rules as Create.
     public void UpdateProfile(string name, string? major, int? year)
-        => throw new NotImplementedException();
+    {
+        Name = Guard.NotEmptyAndAtMost(name, 100);
+        Major = Guard.OptionalAtMost(major, 100);
+        Year = ValidateYear(year);
+    }
 
     /// <summary>Replaces the course list wholesale. Blank entries and duplicates are dropped.</summary>
-    ///
-    /// TODO: Implement (max 20 entries, each max 100 chars).
-    public void SetCourses(IEnumerable<string> courses)
-        => throw new NotImplementedException();
+    public void SetCourses(IEnumerable<string> courses) => ReplaceTags(_courses, courses, 20, 100, "courses");
 
     /// <summary>Replaces the interest list wholesale. Blank entries and duplicates are dropped.</summary>
-    ///
-    /// TODO: Implement (max 30 entries, each max 50 chars).
-    public void SetInterests(IEnumerable<string> interests)
-        => throw new NotImplementedException();
+    public void SetInterests(IEnumerable<string> interests) => ReplaceTags(_interests, interests, 30, 50, "interests");
 
     /// <summary>Records a successful sign-in.</summary>
     public void MarkSeen() => LastSeenAt = DateTimeOffset.UtcNow;
 
-    /// <summary>
-    /// Lowercases and trims an address so lookups and uniqueness behave predictably.
-    /// </summary>
-    /// <remarks>
-    /// Public and static because the auth flow needs to normalise an address before a User
-    /// exists to call it on - <see cref="EmailVerificationCode"/> uses it too. Getting this
-    /// inconsistent is how you end up with two accounts for one inbox.
-    /// </remarks>
-    ///
-    /// TODO: Implement.
-    /// Acceptance criteria:
-    ///   - Trim, lowercase, max 254 chars (RFC 5321).
-    ///   - Reject anything without a local part, an '@', or a dot in the domain.
+    /// <summary>Lowercases and trims an address so lookups and uniqueness behave predictably.</summary>
     public static string NormaliseEmail(string email)
-        => throw new NotImplementedException();
+    {
+        var normalised = Guard.NotEmptyAndAtMost(email, 254).ToLowerInvariant();
+        var atIndex = normalised.LastIndexOf('@');
+
+        if (atIndex <= 0 || atIndex == normalised.Length - 1 ||
+            !normalised[(atIndex + 1)..].Contains('.', StringComparison.Ordinal))
+        {
+            throw new DomainException($"'{email}' is not a valid email address.");
+        }
+
+        return normalised;
+    }
+
+    private static int? ValidateYear(int? year)
+    {
+        if (year is null)
+        {
+            return null;
+        }
+
+        if (year is < 1 or > 10)
+        {
+            throw new DomainException("year must be between 1 and 10.");
+        }
+
+        return year;
+    }
+
+    private static void ReplaceTags(
+        List<string> target,
+        IEnumerable<string> values,
+        int maxCount,
+        int maxLength,
+        string fieldName)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        var cleaned = values
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => v.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (cleaned.Count > maxCount)
+        {
+            throw new DomainException($"{fieldName} may contain at most {maxCount} entries.");
+        }
+
+        if (cleaned.Exists(v => v.Length > maxLength))
+        {
+            throw new DomainException($"Each entry in {fieldName} must be {maxLength} characters or fewer.");
+        }
+
+        target.Clear();
+        target.AddRange(cleaned);
+    }
 }

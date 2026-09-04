@@ -16,6 +16,14 @@ namespace Zee.Application.Common.Interfaces;
 /// </remarks>
 public interface ICurrentUser
 {
+    /// <summary>
+    /// Claim type carrying the student's university id in the JWT. Shared between the
+    /// issuer (<c>TokenService</c> in Infrastructure) and the reader (<c>CurrentUser</c>
+    /// in Api), so both sides can only ever reference this one definition rather than
+    /// hand-maintaining the same string in two places.
+    /// </summary>
+    public const string UniversityIdClaimType = "zee:university_id";
+
     /// <summary>The authenticated student's id, or null when the request is anonymous.</summary>
     Guid? UserId { get; }
 

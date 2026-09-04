@@ -9,23 +9,39 @@ public sealed class EmailVerificationCodeRepository(AppDbContext db) : IEmailVer
 {
     private readonly AppDbContext _db = db;
 
-    /// TODO: Implement.
-    /// Normalise the email, filter to ConsumedAt == null and ExpiresAt > UtcNow, then take
-    /// the NEWEST by CreatedAt. Must be tracked - Verify() increments AttemptCount and sets
-    /// ConsumedAt, and those writes have to persist.
-    public Task<EmailVerificationCode?> GetActiveByEmailAsync(
+     /// <summary>
+    /// Returns the most recently issued, still-live code for an address, or null.
+    /// </summary>
+    /// <remarks>
+    /// Returns a TRACKED entity - EmailVerificationCode.Verify() mutates AttemptCount and
+    /// ConsumedAt, and IUnitOfWork.SaveChangesAsync needs to see those changes to persist them.
+    /// </remarks>
+    public async Task<EmailVerificationCode?> GetActiveByEmailAsync(
         string email,
         CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    {
+        var normalised = User.NormaliseEmail(email);
+        var now = DateTimeOffset.UtcNow;
 
-    /// TODO: Implement with CountAsync over CreatedAt >= since.
-    /// This backs the rate limit on the request-code endpoint. Without it, that endpoint is
-    /// an open mail relay aimed at any institutional inbox an attacker cares to name.
-    public Task<int> CountIssuedSinceAsync(
+        return await _db.EmailVerificationCodes
+            .Where(c => c.Email == normalised && c.ConsumedAt == null && c.ExpiresAt > now)
+            .OrderByDescending(c => c.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Counts codes issued to an address since a given instant, for request rate limiting.
+    /// </summary>
+    public async Task<int> CountIssuedSinceAsync(
         string email,
         DateTimeOffset since,
         CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    {
+        var normalised = User.NormaliseEmail(email);
+
+        return await _db.EmailVerificationCodes
+            .CountAsync(c => c.Email == normalised && c.CreatedAt >= since, cancellationToken);
+    }
 
     public void Add(EmailVerificationCode code) => _db.EmailVerificationCodes.Add(code);
 

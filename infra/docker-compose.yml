@@ -2,45 +2,19 @@
 #
 #   docker compose -f infra/docker-compose.yml up --build
 #
-# Brings up PostgreSQL (with pgvector), Redis, and all three services on one
-# network. Copy infra/.env.example to infra/.env first.
+# Brings up Redis and all three services on one network.
+#
+# THERE IS NO DATABASE CONTAINER. ZEE uses Neon (serverless PostgreSQL), so the
+# database lives outside Compose and every environment — including yours — points
+# at a Neon branch. Create a free project at https://neon.com, then copy
+# infra/.env.example to infra/.env and set your connection strings.
+#
+# See docs/Database.md for the full setup, including how to give yourself an
+# isolated branch so you are not sharing a database with other contributors.
 
 name: zee
 
 services:
-  # ---------------------------------------------------------------------------
-  # PostgreSQL with pgvector.
-  #
-  # The pgvector image is used from day one even though Phase 1 stores no
-  # embeddings. Swapping the image later would mean recreating the volume, and
-  # the extension costs nothing while unused.
-  # ---------------------------------------------------------------------------
-  postgres:
-    image: pgvector/pgvector:pg17
-    container_name: zee-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-zee}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zee}
-      POSTGRES_DB: ${POSTGRES_DB:-zee}
-    ports:
-      # Published so you can point psql or a GUI at it from the host.
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      # Runs ONCE, on first initialisation of an empty data directory. If you
-      # change it later you must `docker compose down -v` for it to run again.
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
-    healthcheck:
-      # Other services wait on this. Without it they start racing an
-      # unready database and fail their first connection.
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zee} -d ${POSTGRES_DB:-zee}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    networks: [zee-net]
-
   # ---------------------------------------------------------------------------
   # Redis — caching and background job queue.
   # ---------------------------------------------------------------------------
@@ -75,14 +49,13 @@ services:
     restart: unless-stopped
     environment:
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required - see infra/.env.example}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-zee}:${POSTGRES_PASSWORD:-zee}@postgres:5432/${POSTGRES_DB:-zee}
+      # Unused in Phase 1 (the service touches no database) but wired now so Phase 2
+      # retrieval has somewhere to read from. Same Neon branch as the API.
+      DATABASE_URL: ${NEON_DATABASE_URL:?NEON_DATABASE_URL is required - see infra/.env.example}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "127.0.0.1:${AI_SERVICE_PORT:-8000}:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -106,7 +79,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB:-zee};Username=${POSTGRES_USER:-zee};Password=${POSTGRES_PASSWORD:-zee}
+      # Neon connection string in Npgsql (key=value) form. Required — the API
+      # refuses to start without it.
+      ConnectionStrings__Postgres: ${NEON_NPGSQL_CONNECTION_STRING:?NEON_NPGSQL_CONNECTION_STRING is required - create a Neon project and see infra/.env.example}
       ConnectionStrings__Redis: redis:6379
       Jwt__Key: ${JWT_KEY:?JWT_KEY is required - see infra/.env.example}
       Jwt__Issuer: ${JWT_ISSUER:-zee}
@@ -116,8 +91,6 @@ services:
     ports:
       - "${API_PORT:-5080}:8080"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
       ai-service:
@@ -126,6 +99,8 @@ services:
         # an optional dependency a hard one.
         condition: service_started
     healthcheck:
+      # /health is the LIVENESS endpoint and runs no database check. Polling
+      # /health/ready here every 10s would keep Neon's compute permanently awake.
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
@@ -157,7 +132,6 @@ services:
     networks: [zee-net]
 
 volumes:
-  postgres-data:
   redis-data:
 
 networks:

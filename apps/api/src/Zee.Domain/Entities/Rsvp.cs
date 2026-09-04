@@ -11,6 +11,7 @@ namespace Zee.Domain.Entities;
 /// </remarks>
 public sealed class Rsvp : Entity
 {
+    /// <summary>Required by EF Core.</summary>
     private Rsvp()
     {
     }
@@ -39,12 +40,15 @@ public sealed class Rsvp : Entity
     /// <summary>Navigation property. Populated only when a query explicitly includes it.</summary>
     public User? User { get; private set; }
 
-    internal static Rsvp Create(Guid eventId, Guid userId, RsvpStatus status) =>
-        new(NewId(), Guard.NotEmpty(eventId), Guard.NotEmpty(userId), Guard.DefinedEnum(status));
+    /// <summary>Creates a response. Internal - go through <see cref="Entities.Event.Respond"/>.</summary>
+    ///
+    /// TODO: Implement (guard both ids and the enum member).
+    internal static Rsvp Create(Guid eventId, Guid userId, RsvpStatus status)
+        => throw new NotImplementedException();
 
+    /// <summary>Changes the response and re-stamps <see cref="RespondedAt"/>.</summary>
+    ///
+    /// TODO: Implement.
     internal void ChangeStatus(RsvpStatus status)
-    {
-        Status = Guard.DefinedEnum(status);
-        RespondedAt = DateTimeOffset.UtcNow;
-    }
+        => throw new NotImplementedException();
 }

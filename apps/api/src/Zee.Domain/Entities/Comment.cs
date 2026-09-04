@@ -12,6 +12,7 @@ public sealed class Comment : Entity
 {
     public const int MaxContentLength = 2000;
 
+    /// <summary>Required by EF Core.</summary>
     private Comment()
     {
     }
@@ -43,16 +44,19 @@ public sealed class Comment : Entity
     /// <summary>Navigation property. Populated only when a query explicitly includes it.</summary>
     public User? Author { get; private set; }
 
+    /// <summary>Creates a comment.</summary>
     /// <exception cref="DomainException">If the content is empty or too long.</exception>
-    public static Comment Create(Guid postId, Guid authorId, string content) =>
-        new(NewId(),
-            Guard.NotEmpty(postId),
-            Guard.NotEmpty(authorId),
-            Guard.NotEmptyAndAtMost(content, MaxContentLength));
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - postId and authorId must not be Guid.Empty.
+    ///   - Content required, trimmed, max MaxContentLength.
+    public static Comment Create(Guid postId, Guid authorId, string content)
+        => throw new NotImplementedException();
 
+    /// <summary>Replaces the body and stamps <see cref="EditedAt"/>.</summary>
+    ///
+    /// TODO: Implement.
     public void Edit(string content)
-    {
-        Content = Guard.NotEmptyAndAtMost(content, MaxContentLength);
-        EditedAt = DateTimeOffset.UtcNow;
-    }
+        => throw new NotImplementedException();
 }

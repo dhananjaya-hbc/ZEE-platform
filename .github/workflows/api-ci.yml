@@ -1,0 +1,79 @@
+name: API CI
+
+# Path filters keep a frontend-only PR from spending minutes building .NET.
+# The workflow file itself is included so changes to CI are always exercised.
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'apps/api/**'
+      - '.github/workflows/api-ci.yml'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'apps/api/**'
+      - '.github/workflows/api-ci.yml'
+
+# A new push to the same PR cancels the previous run rather than queueing behind it.
+concurrency:
+  group: api-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: apps/api
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Restore is cached on the lockfile-equivalent inputs. Central Package
+      # Management means Directory.Packages.props is the single source of versions,
+      # so it is the right cache key.
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('apps/api/Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore Zee.slnx
+
+      - name: Verify formatting
+        run: dotnet format Zee.slnx --verify-no-changes --no-restore
+        continue-on-error: true # TODO: drop this once the tree is fully formatted.
+
+      # -warnaserror is applied here rather than in Directory.Build.props, so a
+      # work in progress still runs locally while CI holds the line.
+      - name: Build
+        run: dotnet build Zee.slnx --configuration Release --no-restore -warnaserror
+
+      - name: Test
+        run: >
+          dotnet test Zee.slnx
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+
+      - name: Upload test results
+        if: always() # Results are most useful precisely when the run failed.
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-results
+          path: apps/api/**/TestResults/**
+          retention-days: 7

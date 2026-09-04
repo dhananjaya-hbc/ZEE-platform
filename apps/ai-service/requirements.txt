@@ -1,0 +1,10 @@
+# Runtime dependencies for the ZEE AI service (Phase 1).
+#
+# Pinned to exact versions so a rebuild months from now produces the same image.
+# Phase 2 additions (embeddings, vector search, an LLM client) go here when the
+# real logic lands — deliberately absent for now so the Phase 1 image stays small.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1

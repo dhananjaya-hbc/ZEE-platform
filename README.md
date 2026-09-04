@@ -7,19 +7,47 @@ competitions and team recruiting, campus events, achievements, and direct messag
 Access is gated by **institutional email verification**, so every account is tied to a
 real, verified university.
 
-> **Phase 1 (this repository, today):** the complete student-facing platform with **no AI
-> features**. The feed is plain reverse-chronological. The AI service exists but returns
-> **mocked** responses.
->
-> **Phase 2 (later):** the real RAG chatbot, student matching, and ranked feed get built
-> on top of actual student usage data. `/apps/ai-service` is owner-maintained — see
-> [CONTRIBUTING.md](CONTRIBUTING.md).
+---
+
+## 🚧 Project status: Phase 1 scaffolding
+
+**This repository is a scaffold, not a working product yet.** The structure, contracts,
+tests and infrastructure are in place. Most method bodies are `TODO` stubs carrying
+acceptance criteria, waiting to be implemented.
+
+| | |
+| --- | --- |
+| ✅ Builds and runs | The whole stack starts with one `docker compose up` |
+| ✅ CI is green | 56 API tests: 53 skipped stubs, 2 passing smoke tests, 0 failures |
+| ⚠️ Endpoints return **501** | Routed and reachable, handler not implemented yet |
+| ⚠️ No EF migrations yet | The schema comes from EF conventions until the configurations are written |
+
+**This is deliberate.** The point is that there is a lot of well-specified,
+self-contained work available to pick up. Every stub states exactly what it must do and
+has a matching test written as a skipped fact:
+
+```bash
+grep -rn "TODO:" apps/ --include=*.cs --include=*.ts --include=*.py
+```
+
+Start at **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+
+### Phase 1 vs Phase 2
+
+**Phase 1 (this repository): no AI features.** The feed is plain reverse-chronological.
+The AI service exists with real routes, real auth and real schemas, but its logic
+returns nothing yet.
+
+**Phase 2 (later): the real RAG chatbot, student matching, and ranked feed** — built on
+actual student usage data, because none of the three can be evaluated without it.
+`/apps/ai-service` is owner-maintained; see
+[CONTRIBUTING.md](CONTRIBUTING.md#what-is-reserved) and [docs/AI_DESIGN.md](docs/AI_DESIGN.md).
 
 ---
 
-## Table of contents
+## Contents
 
-- [Architecture at a glance](#architecture-at-a-glance)
+- [Architecture](#architecture)
 - [Repository layout](#repository-layout)
 - [Quick start](#quick-start)
 - [Running services individually](#running-services-individually)
@@ -32,16 +60,14 @@ real, verified university.
 
 ---
 
-## Architecture at a glance
-
-Three services and two datastores, all wired together by Docker Compose for local development.
+## Architecture
 
 ```
                     ┌──────────────────────────────┐
-                    │   apps/web — Next.js 14 PWA  │
+                    │   apps/web — Next.js PWA     │
                     │   TypeScript · Tailwind      │
                     └──────────────┬───────────────┘
-                                   │ HTTPS (public API)
+                                   │ HTTPS, Bearer JWT
                                    ▼
                     ┌──────────────────────────────┐
                     │  apps/api — ASP.NET Core     │
@@ -55,38 +81,34 @@ Three services and two datastores, all wired together by Docker Compose for loca
 ┌───────────────┐      ┌─────────────┐  ┌─────────────────────────┐
 │  PostgreSQL   │      │    Redis    │  │ apps/ai-service         │
 │  + pgvector   │      │ cache/queue │  │ Python · FastAPI        │
-│               │      │             │  │ Phase 1: mocked only    │
 └───────────────┘      └─────────────┘  └─────────────────────────┘
 ```
 
-**Key decisions**
-
 | Decision | Why |
 | --- | --- |
-| Separate AI service | The AI stack (Python, embeddings, vector search) has a totally different dependency and deploy profile from the .NET API. Keeping it separate means Phase 2 work never destabilises the platform. |
-| The browser never calls the AI service | All AI traffic is proxied through the .NET API, which attaches an internal API key. The AI service is not internet-facing. |
-| `IAiServiceClient` lives in Application | The Application layer depends on the *interface*; Infrastructure supplies the HTTP implementation. Swapping mocks for the real service is a one-line DI change. |
-| pgvector enabled on day one | The extension is turned on now so Phase 2 needs no migration scramble. Nothing in Phase 1 uses it. |
-| Universities are data, not config | Email-domain allowlists live in a `University` table. ZEE spans many campuses; nothing is hardcoded to one school. |
+| Separate AI service | Python/ML has a completely different dependency and deploy profile from .NET. Phase 2 work cannot destabilise the platform. |
+| The browser never calls the AI service | It has no public route. All AI traffic proxies through the API, which holds the internal key server-side. |
+| `IAiServiceClient` in the Application layer | Handlers depend on the interface; Infrastructure supplies the HTTP implementation. Phase 2 changes the Python side only. |
+| pgvector enabled on day one | Turning it on later needs elevated rights at an awkward moment. Unused extensions cost nothing. |
+| Universities are data, not config | Email-domain allowlists live in a `University` table. Nothing is hardcoded to one campus. |
+| No passwords anywhere | Proving you can read mail at a verified campus domain *is* the credential. |
 
-Full detail: [docs/Architecture.md](docs/Architecture.md).
-
----
+Full detail: **[docs/Architecture.md](docs/Architecture.md)**.
 
 ## Repository layout
 
 ```
 ZEE-platform/
 ├── apps/
-│   ├── web/                  Next.js 14 App Router frontend (PWA)
-│   ├── api/                  ASP.NET Core Web API — Clean Architecture
+│   ├── web/                  Next.js frontend (PWA)
+│   ├── api/                  ASP.NET Core backend — Clean Architecture
 │   │   ├── src/
 │   │   │   ├── Zee.Domain/          entities, enums, repository interfaces
 │   │   │   ├── Zee.Application/     MediatR commands/queries, validators, DTOs
 │   │   │   ├── Zee.Infrastructure/  EF Core, repositories, AiServiceClient
 │   │   │   └── Zee.Api/             controllers, middleware, Program.cs
 │   │   └── tests/                   one test project per layer
-│   └── ai-service/           Python FastAPI service (mocked in Phase 1)
+│   └── ai-service/           Python FastAPI service — owner-maintained
 ├── infra/
 │   └── docker-compose.yml    Postgres + Redis + all three services
 ├── docs/                     architecture, tech stack, folder structure, AI design
@@ -95,47 +117,40 @@ ZEE-platform/
 └── README.md
 ```
 
-A file-by-file tour lives in [docs/FolderStructure.md](docs/FolderStructure.md).
-
----
+File-by-file tour: [docs/FolderStructure.md](docs/FolderStructure.md).
 
 ## Quick start
 
-**Prerequisites:** Docker Desktop (or Docker Engine + Compose v2). Nothing else is required
-to run the whole stack.
+**Prerequisites:** Docker Desktop (or Docker Engine + Compose v2). Nothing else.
 
 ```bash
 git clone https://github.com/dhananjaya-hbc/ZEE-platform.git
 cd ZEE-platform
 
-# 1. Create your local env file from the template
 cp infra/.env.example infra/.env
+# Edit infra/.env — set INTERNAL_API_KEY and JWT_KEY.
+# Compose refuses to start without them:
+#   openssl rand -hex 32     # INTERNAL_API_KEY
+#   openssl rand -base64 48  # JWT_KEY
 
-# 2. Bring the whole stack up
 docker compose -f infra/docker-compose.yml up --build
 ```
-
-Then open:
 
 | Service | URL |
 | --- | --- |
 | Web app | http://localhost:3000 |
-| API (Scalar/OpenAPI) | http://localhost:5080/scalar |
-| AI service (Swagger) | http://localhost:8000/docs |
+| API | http://localhost:5080 |
+| API OpenAPI document | http://localhost:5080/openapi/v1.json |
+| API health | http://localhost:5080/health |
+| AI service docs | http://localhost:8000/docs |
 | Postgres | `localhost:5432` (user `zee`, db `zee`) |
 | Redis | `localhost:6379` |
 
-The API applies EF Core migrations on startup in Development, so the schema is ready as
-soon as the container is healthy.
-
-> **Heads-up:** in Phase 1 the OTP email is not actually sent. In Development the code is
-> written to the API logs — grab it from `docker compose logs api`.
-
----
+> **Note:** most endpoints currently return **501 Not Implemented** — that is the
+> scaffolding reporting itself honestly. `/health` works, and `/api/feed` correctly
+> returns 401 without a token.
 
 ## Running services individually
-
-Useful when you're iterating on one app and don't want the whole stack rebuilding.
 
 Start just the datastores:
 
@@ -143,25 +158,27 @@ Start just the datastores:
 docker compose -f infra/docker-compose.yml up postgres redis
 ```
 
-**API (.NET 10)**
+**API** (.NET 10)
 
 ```bash
 cd apps/api
-cp .env.example .env
 dotnet restore
-dotnet run --project src/Zee.Api
+dotnet run --project src/Zee.Api      # http://localhost:5080
 ```
 
-**Web (Node 20+)**
+`appsettings.Development.json` already points at the Compose datastores, so no `.env`
+is needed for local runs.
+
+**Web** (Node 20+)
 
 ```bash
 cd apps/web
 cp .env.example .env.local
 npm install
-npm run dev
+npm run dev                            # http://localhost:3000
 ```
 
-**AI service (Python 3.11+)**
+**AI service** (Python 3.12)
 
 ```bash
 cd apps/ai-service
@@ -171,92 +188,89 @@ pip install -r requirements-dev.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
----
-
 ## Environment variables
 
 Every app ships a `.env.example`. Copy it, never edit it with real values, never commit
-the result — `.gitignore` blocks `.env` files by default.
+the result — `.gitignore` blocks `.env` files.
 
 | File | Covers |
 | --- | --- |
-| `infra/.env.example` | Docker Compose: Postgres credentials, Redis, the shared internal key |
-| `apps/api/.env.example` | Connection strings, JWT signing, AI service base URL + internal key |
-| `apps/web/.env.example` | Public API base URL, PWA toggles |
-| `apps/ai-service/.env.example` | Internal key it validates, database URL for Phase 2 |
+| `infra/.env.example` | Compose: Postgres credentials, Redis, ports, and the shared internal key |
+| `apps/api/.env.example` | Connection strings, JWT signing, AI service URL + internal key |
+| `apps/web/.env.example` | Public API base URL — note every `NEXT_PUBLIC_*` value ships to the browser |
+| `apps/ai-service/.env.example` | The internal key it validates, database URL for Phase 2 |
 
-`AI_SERVICE__INTERNALKEY` (API) and `INTERNAL_API_KEY` (AI service) **must match** — that
+`AiService__InternalKey` (API) and `INTERNAL_API_KEY` (AI service) **must match** — that
 shared secret is the only thing standing between the AI service and anyone who can reach
-its port.
-
----
+its port. Compose injects one value into both so they cannot drift.
 
 ## Auth flow
 
-Signup and login are the same flow: **one-time password to a verified institutional inbox.**
+Signup and login are the same flow: **a one-time code to a verified institutional inbox.**
 
 ```
 1. POST /api/auth/request-otp   { email: "ada@mit.edu" }
         │
-        ├─ Extract domain → look up University by verified email domain
-        ├─ Unknown domain → 404 "university not onboarded"  (onboarding is manual)
-        └─ Known domain   → generate 6-digit code, hash it, store with 10-min expiry,
-                            email the plaintext code
+        ├─ Extract the domain → look up University by verified email domain
+        ├─ Unknown domain → 404 "university not onboarded"   (onboarding is manual)
+        └─ Known domain   → generate 6 digits, HASH it, store with a 10-minute
+                            expiry, email the plaintext code
+
 2. POST /api/auth/verify-otp    { email, code }
         │
-        ├─ Compare hash, check expiry + attempt count
-        └─ Valid → create User (first time) or load them, issue JWT
+        ├─ Check consumed → expired → attempt cap, BEFORE comparing
+        ├─ Constant-time hash comparison, max 5 attempts
+        └─ Valid → create or load the User, issue a JWT
+
 3. Client sends  Authorization: Bearer <jwt>  on every subsequent request.
 ```
 
-University onboarding is **owner-reviewed and manual** in Phase 1. There is no self-serve
-"add my university" endpoint — a new `University` row (with its verified domains) is
-inserted deliberately. This is the anti-abuse boundary for the whole platform.
+Domain matching is **exact, never a suffix** — `notmit.edu` ends with `mit.edu` under a
+naive `EndsWith`, which would let anyone registering a lookalike domain join that
+campus. There is a regression test for exactly this.
 
----
+University onboarding is **owner-reviewed and manual**. There is no self-serve endpoint;
+a new `University` row is inserted deliberately. That is the anti-abuse boundary for the
+whole platform.
+
+> In Development the OTP email is not sent — the code goes to the API logs.
 
 ## Testing
 
 ```bash
-# API — unit + integration
-cd apps/api && dotnet test
-
-# Web — lint + typecheck + unit
-cd apps/web && npm run lint && npm run typecheck && npm test
-
-# AI service — lint + unit
+cd apps/api        && dotnet test
+cd apps/web        && npm run lint && npm run typecheck && npm run build
 cd apps/ai-service && ruff check . && pytest
 ```
 
-CI runs all three on every pull request. See [.github/workflows/](.github/workflows/).
+Tests for unimplemented stubs are **skipped, not failing**, so CI is green on a fresh
+clone — a red baseline would make it impossible to tell your own breakage from the
+scaffolding's. Implementing a stub means removing its `Skip`.
 
----
+CI runs per app on every PR, with path filters, so a web-only change does not wait on a
+.NET build.
 
 ## Documentation
 
 | Doc | What's in it |
 | --- | --- |
-| [docs/Architecture.md](docs/Architecture.md) | Layer boundaries, request lifecycle, data model, why each choice was made |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | **Start here.** Layer guide, a full worked example, how to claim a stub |
+| [docs/Architecture.md](docs/Architecture.md) | Layer boundaries, request lifecycle, data model, auth, feed, known gaps |
 | [docs/TechStack.md](docs/TechStack.md) | Every dependency and the reason it's there |
-| [docs/FolderStructure.md](docs/FolderStructure.md) | Annotated directory tree |
-| [docs/AI_DESIGN.md](docs/AI_DESIGN.md) | The Phase 2 plan: RAG, matching, ranking — and the contract Phase 1 must honour |
-| [docs/Logs.md](docs/Logs.md) | Running development log |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Branching, commits, and a worked example of adding a feature through all four layers |
-
----
+| [docs/FolderStructure.md](docs/FolderStructure.md) | Annotated directory tour |
+| [docs/AI_DESIGN.md](docs/AI_DESIGN.md) | The Phase 2 plan and the constraints it must respect |
+| [docs/Logs.md](docs/Logs.md) | Development log — decisions and their reasoning |
 
 ## Contributing
 
-Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) — it walks the
-Clean Architecture layers with a complete worked example (adding "delete a post" end to
-end).
+Contributions are very welcome — the scaffolding exists so there is clear work to pick
+up. Read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
-Two things worth knowing up front:
+Two things to know up front:
 
 - **Branch from `dev`, PR into `dev`.** `main` is the released state.
-- **`/apps/ai-service` is owner-maintained.** Phase 2 AI logic is deliberately reserved.
-  Bug fixes and infrastructure PRs there are welcome; new AI features are not — please
-  open an issue to discuss instead.
+- **`/apps/ai-service` is owner-maintained.** Bug fixes, tooling and infrastructure PRs
+  are welcome; the Phase 2 AI logic is reserved. Open an issue to discuss instead.
 
 ## License
 

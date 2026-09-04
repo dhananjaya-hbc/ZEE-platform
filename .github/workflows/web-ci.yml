@@ -1,0 +1,63 @@
+name: Web CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/web-ci.yml'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/web-ci.yml'
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: apps/web
+
+jobs:
+  lint-and-build:
+    name: Lint, typecheck and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      # npm ci, not npm install: it installs exactly the lockfile and fails if
+      # package.json has drifted from it, so CI cannot silently resolve different
+      # versions than a contributor had locally.
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build
+
+      # Fails the run on a known vulnerability at high severity or above. Kept as
+      # a separate step so an advisory is distinguishable from a real build break.
+      - name: Audit dependencies
+        run: npm audit --audit-level=high

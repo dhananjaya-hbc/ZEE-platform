@@ -15,7 +15,7 @@ public sealed class GuardTests
 {
     private const string Todo = "TODO: implement Guard, then remove this Skip.";
 
-    [Theory(Skip = Todo)]
+    [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
@@ -24,7 +24,7 @@ public sealed class GuardTests
         Should.Throw<DomainException>(() => Guard.NotEmpty(value));
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void NotEmpty_returns_the_trimmed_value()
     {
         Guard.NotEmpty("  hello  ").ShouldBe("hello");
@@ -34,7 +34,7 @@ public sealed class GuardTests
     /// [CallerArgumentExpression] should put the caller's variable name in the message, so
     /// errors read "content must not be empty" with no hand-written literal to drift.
     /// </summary>
-    [Fact(Skip = Todo)]
+    [Fact]
     public void NotEmpty_names_the_offending_argument_in_the_message()
     {
         var content = "   ";
@@ -44,19 +44,19 @@ public sealed class GuardTests
         ex.Message.ShouldContain("content");
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void OptionalAtMost_returns_null_for_blank_input()
     {
         Guard.OptionalAtMost("   ", 10).ShouldBeNull();
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void NotEmptyAndAtMost_throws_when_the_value_is_too_long()
     {
         Should.Throw<DomainException>(() => Guard.NotEmptyAndAtMost("abcdef", 3));
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void DefinedEnum_rejects_a_value_that_is_not_a_declared_member()
     {
         Should.Throw<DomainException>(() => Guard.DefinedEnum((Zee.Domain.Enums.RsvpStatus)99));
@@ -66,7 +66,7 @@ public sealed class GuardTests
     /// These URLs are rendered as links on profile pages, so anything but http/https is a
     /// stored-XSS vector.
     /// </summary>
-    [Theory(Skip = Todo)]
+    [Theory]
     [InlineData("javascript:alert(1)")]
     [InlineData("data:text/html;base64,PHNjcmlwdD4=")]
     [InlineData("file:///etc/passwd")]
@@ -76,7 +76,7 @@ public sealed class GuardTests
         Should.Throw<DomainException>(() => Guard.OptionalAbsoluteUrl(url));
     }
 
-    [Theory(Skip = Todo)]
+    [Theory]
     [InlineData("https://example.com/proof")]
     [InlineData("http://example.com")]
     public void OptionalAbsoluteUrl_accepts_http_and_https(string url)
@@ -84,7 +84,7 @@ public sealed class GuardTests
         Guard.OptionalAbsoluteUrl(url).ShouldBe(url);
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void EndAfterStart_throws_when_the_end_is_not_after_the_start()
     {
         var now = DateTimeOffset.UtcNow;

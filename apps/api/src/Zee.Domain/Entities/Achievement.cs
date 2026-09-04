@@ -15,6 +15,7 @@ namespace Zee.Domain.Entities;
 /// </remarks>
 public sealed class Achievement : Entity
 {
+    /// <summary>Required by EF Core.</summary>
     private Achievement()
     {
     }
@@ -62,10 +63,22 @@ public sealed class Achievement : Entity
     /// <summary>Navigation property. Populated only when a query explicitly includes it.</summary>
     public Competition? Competition { get; private set; }
 
+    /// <summary>Records an achievement.</summary>
     /// <exception cref="DomainException">
     /// If the title is blank, the date is in the future, or the proof URL is not an
     /// absolute http/https URL.
     /// </exception>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - userId must not be Guid.Empty.
+    ///   - Reject dates more than 1 day in the future. The one-day slack is intentional:
+    ///     client clocks drift, and rejecting an achievement dated "today" because a phone
+    ///     is four hours fast is a bad bug to ship.
+    ///   - Title required, max 200. Description optional, max 2000.
+    ///   - ProofUrl optional, but if present must be an absolute http/https URL
+    ///     (Guard.OptionalAbsoluteUrl) - these get rendered as links.
+    ///   - Date stored as UTC.
     public static Achievement Create(
         Guid userId,
         string title,
@@ -73,28 +86,5 @@ public sealed class Achievement : Entity
         string? description = null,
         Guid? competitionId = null,
         string? proofUrl = null)
-    {
-        Guard.NotEmpty(userId);
-
-        // A small clock-skew allowance keeps clients with slightly fast clocks from being
-        // rejected for an achievement dated "now".
-        if (date > DateTimeOffset.UtcNow.AddDays(1))
-        {
-            throw new DomainException("An achievement cannot be dated in the future.");
-        }
-
-        if (competitionId is not null)
-        {
-            Guard.NotEmpty(competitionId.Value, nameof(competitionId));
-        }
-
-        return new Achievement(
-            NewId(),
-            userId,
-            competitionId,
-            Guard.NotEmptyAndAtMost(title, 200),
-            Guard.OptionalAtMost(description, 2000),
-            date.ToUniversalTime(),
-            Guard.OptionalAbsoluteUrl(proofUrl));
-    }
+        => throw new NotImplementedException();
 }

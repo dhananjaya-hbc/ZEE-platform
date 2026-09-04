@@ -1,0 +1,77 @@
+# Development Log
+
+Running record of significant decisions and milestones. Newest first.
+
+Add an entry when you make a decision that a future contributor would otherwise have
+to reverse-engineer from the code. Routine feature work belongs in the git history,
+not here.
+
+---
+
+## 2026-09-04 — Phase 1 scaffolding
+
+Initial repository structure. The platform is scaffolded end to end: structure,
+contracts, tests and infrastructure are in place, with most method bodies left as
+`TODO` stubs carrying acceptance criteria.
+
+**What exists and runs:**
+
+- Monorepo: `apps/{api,web,ai-service}`, `infra/`, `docs/`, `.github/workflows/`
+- .NET solution, 7 projects, Clean Architecture dependency rule enforced by project
+  references. Builds clean under `-warnaserror`.
+- 12 domain entities with signatures, XML docs and invariant specifications
+- Application layer: 4 vertical slices (CreatePost, GetFeed, CreateEvent,
+  CreateCompetition) plus the chatbot query, wired through MediatR with an automatic
+  validation pipeline
+- Infrastructure: `AppDbContext`, 12 EF configuration skeletons, 6 repositories,
+  `AiServiceClient`, full DI wiring
+- Api: 5 thin controllers, global exception middleware, JWT auth, CORS, health checks
+- Next.js app: 6 routes building and prerendering, typed API client, PWA manifest
+- FastAPI service: 3 endpoints + health, router-level internal-key enforcement
+- Docker Compose: Postgres (pgvector), Redis, all three services
+- CI: per-app workflows with path filters, plus Discord notifications
+
+**Verified:** `dotnet build -warnaserror` clean; `dotnet test` green (56 tests —
+53 skipped stubs, 2 passing smoke tests, 0 failures); `npm run lint`, `tsc --noEmit`
+and `npm run build` all clean; `npm audit` reports 0 vulnerabilities;
+`ruff check` and `ruff format --check` clean; `docker compose config` valid.
+
+### Decisions
+
+| Decision | Reasoning |
+| --- | --- |
+| **OTP over magic link** | Works in a PWA without deep-link handling, easier to test, and not vulnerable to link-scanning email security products consuming the token before the student does. |
+| **Stubs over full implementation** | The repository is for contributors. A finished codebase leaves nothing to claim; a specified skeleton leaves a lot. Every stub carries acceptance criteria and a matching skipped test. |
+| **Tests skipped, not failing** | CI must be green on a fresh clone. A red baseline makes it impossible for a contributor to distinguish their own breakage from the scaffolding's. |
+| **`NotImplementedException` → HTTP 501** | An unbuilt endpoint reports itself honestly instead of returning a confusing 500. The web client surfaces it as `ApiError.isNotImplemented`. |
+| **EF configurations empty, not throwing** | `OnModelCreating` runs them all at startup; throwing would stop the API booting and block everyone. Empty means conventions apply and the app still runs. |
+| **MediatR pinned to 12.4.1** | Last Apache-2.0 release. v13+ requires a commercial licence, which does not suit an open-source project. Shouldly replaces FluentAssertions for the same reason. |
+| **UUIDv7 primary keys** | Time-ordered, so inserts append to the index edge rather than fragmenting it as random v4 GUIDs do. |
+| **Keyset pagination** | `OFFSET` duplicates and drops rows on a feed receiving new posts, and degrades linearly with depth. |
+| **Next 16, not 15.1** | Next 15.x has open advisories via `postcss`. `postcss` and `vitest` are also pinned above their default ranges so `npm audit` is clean. |
+| **Python 3.12 in the Dockerfile** | `pydantic-core` ships prebuilt wheels for it; on 3.14 the install compiles Rust from source. |
+| **pgvector enabled now** | Turning it on later needs elevated rights at an awkward moment. Unused extensions cost nothing. |
+| **CA1716 suppressed** | Lets the `Event` entity keep the name the data model documents. The rule targets cross-language consumers; ZEE is C#-only. |
+
+### Deviations from the original brief
+
+- **Two extra repository interfaces.** `IUniversityRepository` and
+  `IEmailVerificationCodeRepository` were added — the OTP flow cannot resolve an email
+  domain to a campus or store a pending code without them.
+- **`CONTRIBUTING.md` is at the repository root**, not in `docs/`. The distribution
+  guideline requires that exact filename at the root; `docs/` links to it.
+- **AI service mocks are stubbed, not written.** Originally scoped as working mocks;
+  reduced to skeletons for consistency with the rest of the scaffolding.
+
+### Open questions
+
+- Token storage on the web client — httpOnly cookie (recommended) or localStorage?
+  The tradeoff is written up in `apps/web/src/lib/auth.ts`.
+- Email provider for OTP delivery. Development currently logs the code.
+- Moderation and reporting are not modelled at all. Needed before any real pilot.
+
+### Next up
+
+See the known-gaps table in [Architecture.md](Architecture.md#known-gaps). The highest
+value work, roughly in order: implement `Guard` and the domain entities (unblocks
+everything), then the repositories, then rate limiting on `request-otp`.

@@ -153,17 +153,14 @@ a route or a schema — and therefore without touching the .NET side at all.
 
 ```
 infra/
-├── docker-compose.yml          Postgres + Redis + all three services
-├── .env.example                ONE shared INTERNAL_API_KEY for both services
-└── postgres/
-    └── init.sql                Enables pgvector, citext, pg_trgm on FIRST init
+├── docker-compose.yml          Redis + all three services — NO database container
+└── .env.example                Neon connection strings + ONE shared INTERNAL_API_KEY
 ```
 
-`init.sql` runs only when the data directory is first created. Changing it later means
-`docker compose down -v`.
-
-Tables are **not** created here — EF Core migrations own the schema, so it lives in one
-place rather than two that can disagree.
+**The database is [Neon](https://neon.com)**, not part of Compose — see
+[Database.md](Database.md). Extensions (`vector`, `citext`, `pg_trgm`) are declared on
+the EF Core model in `AppDbContext.OnModelCreating` and applied by migration, so the
+schema has exactly one source of truth.
 
 ## `.github/workflows`
 

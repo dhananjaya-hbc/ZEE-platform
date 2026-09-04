@@ -19,6 +19,7 @@ public sealed class Post : Entity
 
     private readonly List<Comment> _comments = [];
 
+    /// <summary>Required by EF Core.</summary>
     private Post()
     {
     }
@@ -66,49 +67,37 @@ public sealed class Post : Entity
     /// If the content is empty or whitespace, exceeds <see cref="MaxContentLength"/>,
     /// the author id is empty, or group scoping and visibility disagree.
     /// </exception>
+    ///
+    /// TODO: Implement. This is the reference example walked through in CONTRIBUTING.md,
+    /// so keep it readable.
+    ///
+    /// Acceptance criteria:
+    ///   - Empty or whitespace-only content throws DomainException. (Explicitly required.)
+    ///   - Content longer than MaxContentLength throws.
+    ///   - authorId of Guid.Empty throws.
+    ///   - visibility must be a defined enum member.
+    ///   - Visibility == Group REQUIRES groupId; any other visibility REQUIRES groupId null.
+    ///     Keep these two facts in lockstep - a post claiming group visibility with no group
+    ///     to be visible to has no correct interpretation.
+    ///   - CreatedAt is set to UtcNow; EditedAt starts null.
+    ///   - Unit tests in tests/Zee.Domain.UnitTests/Entities/PostTests.cs.
     public static Post Create(
         Guid authorId,
         string content,
         PostVisibility visibility = PostVisibility.Global,
         Guid? groupId = null)
-    {
-        Guard.NotEmpty(authorId);
-        Guard.DefinedEnum(visibility);
-
-        // Group scoping and visibility are two sides of the same fact, so they are kept in
-        // lockstep rather than allowed to drift into a state where a post claims group
-        // visibility but has no group to be visible to.
-        if (visibility == PostVisibility.Group && groupId is null)
-        {
-            throw new DomainException("A post with Group visibility must specify a groupId.");
-        }
-
-        if (visibility != PostVisibility.Group && groupId is not null)
-        {
-            throw new DomainException("A post with a groupId must use Group visibility.");
-        }
-
-        if (groupId is not null)
-        {
-            Guard.NotEmpty(groupId.Value, nameof(groupId));
-        }
-
-        return new Post(
-            NewId(),
-            authorId,
-            Guard.NotEmptyAndAtMost(content, MaxContentLength),
-            groupId,
-            visibility);
-    }
+        => throw new NotImplementedException();
 
     /// <summary>
-    /// Replaces the body and stamps <see cref="EditedAt"/>. Visibility and group are fixed
-    /// after creation - changing who can see something already published is a different
-    /// operation with different consequences, not an edit.
+    /// Replaces the body and stamps <see cref="EditedAt"/>.
     /// </summary>
+    /// <remarks>
+    /// Visibility and group are intentionally not editable. Widening the audience of
+    /// something already published is a different operation with different consequences,
+    /// not an edit.
+    /// </remarks>
+    ///
+    /// TODO: Implement (same content rules as Create, then set EditedAt to UtcNow).
     public void Edit(string content)
-    {
-        Content = Guard.NotEmptyAndAtMost(content, MaxContentLength);
-        EditedAt = DateTimeOffset.UtcNow;
-    }
+        => throw new NotImplementedException();
 }

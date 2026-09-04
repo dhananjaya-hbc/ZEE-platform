@@ -13,6 +13,7 @@ namespace Zee.Domain.Entities;
 /// </remarks>
 public sealed class Competition : Entity
 {
+    /// <summary>Required by EF Core.</summary>
     private Competition()
     {
     }
@@ -67,9 +68,18 @@ public sealed class Competition : Entity
     /// <summary>Navigation property. Populated only when a query explicitly includes it.</summary>
     public University? University { get; private set; }
 
+    /// <summary>Creates a competition listing.</summary>
     /// <exception cref="DomainException">
     /// If the title or description is blank, or the competition ends before it starts.
     /// </exception>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - category must be a defined enum member; organizerId must not be Guid.Empty.
+    ///   - endDate must be strictly after startDate.
+    ///   - Both dates stored as UTC (call .ToUniversalTime()) so cross-campus listings from
+    ///     different timezones compare correctly.
+    ///   - Title required, max 200. Description required, max 10000.
     public static Competition Create(
         string title,
         CompetitionCategory category,
@@ -79,38 +89,14 @@ public sealed class Competition : Entity
         string description,
         Guid? universityId = null,
         bool recruitingTeams = false)
-    {
-        Guard.DefinedEnum(category);
-        Guard.NotEmpty(organizerId);
-        Guard.EndAfterStart(startDate, endDate, "A competition");
-
-        if (universityId is not null)
-        {
-            Guard.NotEmpty(universityId.Value, nameof(universityId));
-        }
-
-        return new Competition(
-            NewId(),
-            Guard.NotEmptyAndAtMost(title, 200),
-            category,
-            organizerId,
-            universityId,
-            startDate.ToUniversalTime(),
-            endDate.ToUniversalTime(),
-            Guard.NotEmptyAndAtMost(description, 10_000),
-            recruitingTeams);
-    }
+        => throw new NotImplementedException();
 
     /// <summary>Opens or closes team recruiting.</summary>
     public void SetRecruitingTeams(bool recruiting) => RecruitingTeams = recruiting;
 
+    /// <summary>Updates the editable details of a listing.</summary>
+    ///
+    /// TODO: Implement, reusing the same date and length rules as Create.
     public void UpdateDetails(string title, string description, DateTimeOffset startDate, DateTimeOffset endDate)
-    {
-        Guard.EndAfterStart(startDate, endDate, "A competition");
-
-        Title = Guard.NotEmptyAndAtMost(title, 200);
-        Description = Guard.NotEmptyAndAtMost(description, 10_000);
-        StartDate = startDate.ToUniversalTime();
-        EndDate = endDate.ToUniversalTime();
-    }
+        => throw new NotImplementedException();
 }

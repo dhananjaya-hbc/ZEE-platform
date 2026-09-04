@@ -19,7 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 // so adding a repository or a handler never means editing this file.
 // ---------------------------------------------------------------------------
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();

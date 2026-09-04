@@ -1,0 +1,11 @@
+# EF Core generates every file in this folder. Do not hand-edit them, and do not hold
+# them to the hand-written analyzer ruleset the rest of the codebase follows.
+
+[*.cs]
+
+# CA1861: prefer static readonly arrays over inline literals. EF Core's migration
+# generator emits inline arrays for composite index columns; that is how the tool
+# writes migrations, and it is not something a contributor should "fix" by hand -
+# doing so risks the file falling out of sync with what `dotnet ef migrations add`
+# would regenerate.
+dotnet_diagnostic.CA1861.severity = none

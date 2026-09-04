@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Zee.Api.Middleware;
@@ -87,8 +88,10 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod()
         .AllowCredentials()));
 
+// The database check is TAGGED rather than unconditional, so it can be excluded
+// from the cheap liveness probe below. See the MapHealthChecks calls for why.
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<AppDbContext>("postgres");
+    .AddDbContextCheck<AppDbContext>("postgres", tags: ["ready"]);
 
 var app = builder.Build();
 
@@ -123,7 +126,33 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHealthChecks("/health").AllowAnonymous();
+
+// ---------------------------------------------------------------------------
+// Health endpoints — deliberately two of them.
+//
+// Neon scales its compute to zero after a few minutes of inactivity. A health
+// check that touches the database on every poll would keep waking it, so the
+// compute never idles down and burns hours continuously for no benefit.
+//
+//   /health        liveness  — "is this process up". Runs NO checks, touches
+//                              nothing. This is what an orchestrator or uptime
+//                              monitor should poll frequently.
+//   /health/ready  readiness — "can this process serve traffic". Runs the
+//                              tagged database check. Poll this rarely, or on
+//                              deploy only.
+//
+// Predicate: _ => false means "run none of the registered checks" and report
+// Healthy if the pipeline responds at all.
+// ---------------------------------------------------------------------------
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => false,
+}).AllowAnonymous();
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+}).AllowAnonymous();
 
 await app.RunAsync();
 

@@ -20,7 +20,7 @@ public sealed class EmailVerificationCodeTests
     private static EmailVerificationCode Issued() =>
         EmailVerificationCode.Create("ada@mit.edu", UniversityId, RightHash);
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void Create_normalises_the_email_and_sets_an_expiry()
     {
         var code = EmailVerificationCode.Create("Ada@MIT.edu", UniversityId, RightHash);
@@ -31,7 +31,7 @@ public sealed class EmailVerificationCodeTests
         code.IsConsumed.ShouldBeFalse();
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void Verify_succeeds_and_consumes_the_code_on_a_matching_hash()
     {
         var code = Issued();
@@ -40,7 +40,7 @@ public sealed class EmailVerificationCodeTests
         code.IsConsumed.ShouldBeTrue();
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void Verify_counts_the_attempt_on_a_wrong_hash()
     {
         var code = Issued();
@@ -50,7 +50,7 @@ public sealed class EmailVerificationCodeTests
         code.IsConsumed.ShouldBeFalse();
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void Verify_rejects_reuse_of_a_consumed_code()
     {
         var code = Issued();
@@ -63,7 +63,7 @@ public sealed class EmailVerificationCodeTests
     /// The attempt cap must burn the code outright: once the limit is reached, even the
     /// correct hash is refused. A cap that still lets a correct guess through is not a cap.
     /// </summary>
-    [Fact(Skip = Todo)]
+    [Fact]
     public void Verify_refuses_the_correct_hash_once_the_attempt_cap_is_reached()
     {
         var code = Issued();
@@ -77,7 +77,7 @@ public sealed class EmailVerificationCodeTests
         code.IsConsumed.ShouldBeFalse();
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void Verify_treats_a_null_candidate_as_a_mismatch_rather_than_throwing()
     {
         Issued().Verify(null!).ShouldBe(OtpVerificationResult.IncorrectCode);

@@ -59,22 +59,29 @@ open to contributions.
 
 ## Local setup
 
-The whole stack runs in Docker:
+ZEE has no local database — it runs on [Neon](https://neon.com) (serverless
+PostgreSQL) everywhere, including development. **Create your own free Neon project and
+branch before continuing** — see [docs/Database.md](docs/Database.md), and do not share
+a branch with another contributor, or you will overwrite each other's data.
 
 ```bash
-cp infra/.env.example infra/.env      # then edit the two "change-me" secrets
+cp infra/.env.example infra/.env
+# Fill in NEON_NPGSQL_CONNECTION_STRING, NEON_DATABASE_URL, INTERNAL_API_KEY, JWT_KEY.
 docker compose -f infra/docker-compose.yml up --build
 ```
 
-To work on one app at a time, start just the datastores and run the app directly:
+To work on one app at a time, start just Redis and run the app directly:
 
 ```bash
-docker compose -f infra/docker-compose.yml up postgres redis
+docker compose -f infra/docker-compose.yml up redis
 
 cd apps/api        && dotnet run --project src/Zee.Api    # http://localhost:5080
 cd apps/web        && npm install && npm run dev          # http://localhost:3000
 cd apps/ai-service && pip install -r requirements-dev.txt && uvicorn app.main:app --reload
 ```
+
+The API needs `ConnectionStrings__Postgres` set to your Neon branch even for `dotnet
+run` — set it in `apps/api/.env` or export it directly.
 
 ## Picking up a task
 

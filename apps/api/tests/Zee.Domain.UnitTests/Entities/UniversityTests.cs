@@ -15,19 +15,19 @@ public sealed class UniversityTests
 
     private static University Mit() => University.Create("MIT", "US", ["mit.edu"]);
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void Create_requires_at_least_one_verified_domain()
     {
         Should.Throw<DomainException>(() => University.Create("MIT", "US", []));
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void Create_requires_a_two_letter_country_code()
     {
         Should.Throw<DomainException>(() => University.Create("MIT", "USA", ["mit.edu"]));
     }
 
-    [Theory(Skip = Todo)]
+    [Theory]
     [InlineData("@MIT.EDU")]
     [InlineData("MIT.EDU")]
     [InlineData("  mit.edu  ")]
@@ -38,7 +38,7 @@ public sealed class UniversityTests
         university.VerifiedEmailDomains.ShouldContain("mit.edu");
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void AcceptsEmail_accepts_an_address_at_a_verified_domain()
     {
         Mit().AcceptsEmail("ada@mit.edu").ShouldBeTrue();
@@ -52,7 +52,7 @@ public sealed class UniversityTests
     /// anyone able to register a lookalike domain join MIT's campus network. Domain matching
     /// must be exact.
     /// </remarks>
-    [Theory(Skip = Todo)]
+    [Theory]
     [InlineData("attacker@notmit.edu")]
     [InlineData("attacker@evilmit.edu")]
     [InlineData("attacker@mit.edu.evil.com")]
@@ -62,7 +62,7 @@ public sealed class UniversityTests
         Mit().AcceptsEmail(email).ShouldBeFalse();
     }
 
-    [Theory(Skip = Todo)]
+    [Theory]
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("no-at-sign")]
@@ -72,7 +72,7 @@ public sealed class UniversityTests
         Mit().AcceptsEmail(email).ShouldBeFalse();
     }
 
-    [Fact(Skip = Todo)]
+    [Fact]
     public void RemoveVerifiedDomain_refuses_to_remove_the_last_domain()
     {
         Should.Throw<DomainException>(() => Mit().RemoveVerifiedDomain("mit.edu"));

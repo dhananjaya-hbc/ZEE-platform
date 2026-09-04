@@ -73,12 +73,14 @@ On 3.14 the install compiles Rust from source and takes minutes.
 
 ## Data
 
-**PostgreSQL 17 with pgvector.** One database, shared by both services. The extension
-is enabled from the first `docker compose up` even though nothing in Phase 1 uses it —
-turning it on later would mean a migration needing elevated rights at an awkward
-moment, and an unused extension costs nothing.
+**PostgreSQL 17 on [Neon](https://neon.com) (serverless), with pgvector.** One database,
+shared by both services. There is no local database container — every environment,
+including development, points at a Neon branch. See [Database.md](Database.md).
 
-Also enabled: `citext` and `pg_trgm` (for search later).
+The `vector` extension is declared on the EF Core model and enabled by migration, even
+though nothing in Phase 1 uses it — adding it later would mean a migration needing
+elevated rights at an awkward moment, and an unused extension costs nothing. `citext`
+and `pg_trgm` are enabled the same way, for search later.
 
 **Redis 7** for caching and background jobs.
 

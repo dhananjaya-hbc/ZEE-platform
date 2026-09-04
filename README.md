@@ -128,23 +128,31 @@ git clone https://github.com/dhananjaya-hbc/ZEE-platform.git
 cd ZEE-platform
 
 cp infra/.env.example infra/.env
-# Edit infra/.env — set INTERNAL_API_KEY and JWT_KEY.
-# Compose refuses to start without them:
-#   openssl rand -hex 32     # INTERNAL_API_KEY
-#   openssl rand -base64 48  # JWT_KEY
+# Edit infra/.env:
+#   - NEON_NPGSQL_CONNECTION_STRING and NEON_DATABASE_URL — from a free Neon
+#     project at https://neon.com. See docs/Database.md.
+#   - INTERNAL_API_KEY and JWT_KEY:
+#       openssl rand -hex 32     # INTERNAL_API_KEY
+#       openssl rand -base64 48  # JWT_KEY
 
 docker compose -f infra/docker-compose.yml up --build
 ```
+
+**ZEE has no local database container** — it runs on
+[Neon](https://neon.com) (serverless PostgreSQL) in every environment, including
+development. See [docs/Database.md](docs/Database.md) for setup, why, and how to give
+yourself an isolated branch.
 
 | Service | URL |
 | --- | --- |
 | Web app | http://localhost:3000 |
 | API | http://localhost:5080 |
 | API OpenAPI document | http://localhost:5080/openapi/v1.json |
-| API health | http://localhost:5080/health |
+| API liveness | http://localhost:5080/health |
+| API readiness (hits the DB) | http://localhost:5080/health/ready |
 | AI service docs | http://localhost:8000/docs |
-| Postgres | `localhost:5432` (user `zee`, db `zee`) |
 | Redis | `localhost:6379` |
+| Database | your Neon branch — see [docs/Database.md](docs/Database.md) |
 
 > **Note:** most endpoints currently return **501 Not Implemented** — that is the
 > scaffolding reporting itself honestly. `/health` works, and `/api/feed` correctly
@@ -155,7 +163,7 @@ docker compose -f infra/docker-compose.yml up --build
 Start just the datastores:
 
 ```bash
-docker compose -f infra/docker-compose.yml up postgres redis
+docker compose -f infra/docker-compose.yml up redis   # the database is Neon, not a container
 ```
 
 **API** (.NET 10)
@@ -195,7 +203,7 @@ the result — `.gitignore` blocks `.env` files.
 
 | File | Covers |
 | --- | --- |
-| `infra/.env.example` | Compose: Postgres credentials, Redis, ports, and the shared internal key |
+| `infra/.env.example` | Compose: Neon connection strings, Redis, ports, and the shared internal key |
 | `apps/api/.env.example` | Connection strings, JWT signing, AI service URL + internal key |
 | `apps/web/.env.example` | Public API base URL — note every `NEXT_PUBLIC_*` value ships to the browser |
 | `apps/ai-service/.env.example` | The internal key it validates, database URL for Phase 2 |
@@ -255,6 +263,7 @@ CI runs per app on every PR, with path filters, so a web-only change does not wa
 | Doc | What's in it |
 | --- | --- |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | **Start here.** Layer guide, a full worked example, how to claim a stub |
+| [docs/Database.md](docs/Database.md) | Setting up Neon, branching, pooled vs direct endpoints, migrations |
 | [docs/Architecture.md](docs/Architecture.md) | Layer boundaries, request lifecycle, data model, auth, feed, known gaps |
 | [docs/TechStack.md](docs/TechStack.md) | Every dependency and the reason it's there |
 | [docs/FolderStructure.md](docs/FolderStructure.md) | Annotated directory tour |

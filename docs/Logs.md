@@ -8,6 +8,39 @@ not here.
 
 ---
 
+## 2026-09-04 — Switched the database to Neon
+
+Replaced the local Postgres container with [Neon](https://neon.com) (serverless
+PostgreSQL) in every environment, including development. Full setup, reasoning and
+troubleshooting: [Database.md](Database.md).
+
+**What changed:**
+
+- `infra/docker-compose.yml` — the `postgres` service and its volume are gone.
+  `infra/postgres/init.sql` is deleted; extensions moved onto the EF Core model
+  (`AppDbContext.OnModelCreating`) so they are applied by migration instead of a
+  Compose-only init hook that a managed database has no equivalent of.
+- `Zee.Infrastructure/DependencyInjection.cs` — `EnableRetryOnFailure` widened to
+  5 attempts / 10s ceiling (was 3 / 5s) to absorb a Neon cold-start resume, plus an
+  explicit 30s `CommandTimeout` now that every query crosses a real network.
+- **Health checks split.** `/health` (liveness, no DB) and `/health/ready`
+  (readiness, hits the DB). A single DB-touching health check polled every 10s would
+  keep Neon's compute permanently awake, defeating scale-to-zero. Point monitors at
+  `/health`.
+- All `.env.example` files and `appsettings.Development.json` updated; the dev
+  Postgres connection string is now intentionally blank rather than a working local
+  default.
+
+**Why not keep the container for local dev and use Neon only in production?** That
+hybrid was the initial recommendation — it needs no account to run the stack locally.
+It was overridden in favour of one database engine everywhere: no "works with the
+container, breaks on Neon" class of bug, and Neon's per-branch isolation solves the
+problem the container was mainly there for (contributors not clobbering each other's
+data). The real cost is a signup step before  works at all — worth
+watching if it turns out to block first-time contributors.
+
+---
+
 ## 2026-09-04 — Phase 1 scaffolding
 
 Initial repository structure. The platform is scaffolded end to end: structure,

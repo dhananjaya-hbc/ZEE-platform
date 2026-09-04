@@ -1,0 +1,9 @@
+# Development and CI dependencies. Installs the runtime set as well.
+
+-r requirements.txt
+
+pytest==8.3.4
+pytest-asyncio==0.25.2
+httpx==0.28.1
+ruff==0.9.2
+mypy==1.14.1

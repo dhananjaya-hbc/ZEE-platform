@@ -113,6 +113,22 @@ public sealed class ExceptionHandlingMiddleware(
             Detail = "You do not have permission to perform this action.",
         },
 
+        TooManyRequestsException tooMany => new ProblemDetails
+        {
+            Status = StatusCodes.Status429TooManyRequests,
+            Title = "Too many requests.",
+            Detail = tooMany.Message,
+        },
+
+                InvalidOtpException invalidOtp => new ProblemDetails
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "Invalid code.",
+            Detail = invalidOtp.Message,
+        },
+
+
+
         // Phase 1 scaffolding: most handlers are still stubs. 501 says "this endpoint is
         // routed and reachable but not built yet", which is a far more useful signal to a
         // contributor - and to the frontend - than a generic 500.

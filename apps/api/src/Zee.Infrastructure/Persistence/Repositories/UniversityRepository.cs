@@ -24,9 +24,28 @@ public sealed class UniversityRepository(AppDbContext db) : IUniversityRepositor
     ///     anyone able to register a lookalike domain could join that campus.
     ///   - Filter to IsActive == true, so suspending a university actually blocks sign-in.
     ///   - Tests must include the notmit.edu regression case.
-    public Task<University?> FindByEmailDomainAsync(string email, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    public async Task<University?> FindByEmailDomainAsync(string email, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
 
+        var atIndex = email.LastIndexOf('@');
+
+        if (atIndex < 0 || atIndex == email.Length - 1)
+        {
+            return null;
+        }
+
+        var domain = email[(atIndex + 1)..].Trim().ToLowerInvariant();
+
+        return await _db.Universities
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                u => u.IsActive && u.VerifiedEmailDomains.Contains(domain),
+                cancellationToken);
+    }
     /// TODO: Implement - active universities, ordered by name.
     public Task<IReadOnlyList<University>> GetActiveAsync(CancellationToken cancellationToken = default)
         => throw new NotImplementedException();

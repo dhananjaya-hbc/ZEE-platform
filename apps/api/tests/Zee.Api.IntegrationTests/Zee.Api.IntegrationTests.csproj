@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Integration tests: the real ASP.NET pipeline via WebApplicationFactory -
+    routing, model binding, middleware, MediatR dispatch.
+
+    The database is swapped for the EF Core in-memory provider so these run in CI
+    with no Docker daemon. That provider does not enforce relational constraints,
+    so it is fine for "does the pipeline work" and wrong for "does this query
+    translate". When the query surface grows, move this project to Testcontainers
+    and a real Postgres - see docs/Architecture.md.
+  -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Zee.Api\Zee.Api.csproj" />
+  </ItemGroup>
+
+</Project>

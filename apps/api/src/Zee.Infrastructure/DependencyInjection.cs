@@ -5,8 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Zee.Application.Common.Interfaces;
 using Zee.Domain.Repositories;
 using Zee.Infrastructure.Ai;
+using Zee.Infrastructure.Auth;
 using Zee.Infrastructure.Persistence;
 using Zee.Infrastructure.Persistence.Repositories;
+using Microsoft.Extensions.Hosting;
+
 
 namespace Zee.Infrastructure;
 
@@ -20,17 +23,21 @@ namespace Zee.Infrastructure;
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    this IServiceCollection services,
+    IConfiguration configuration,
+    IHostEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(environment);
 
         AddPersistence(services, configuration);
         AddCaching(services, configuration);
         AddAiService(services, configuration);
+        AddAuth(services, configuration, environment);
 
         return services;
     }
+
 
     private static void AddPersistence(IServiceCollection services, IConfiguration configuration)
     {
@@ -117,4 +124,36 @@ public static class DependencyInjection
                 new MediaTypeWithQualityHeaderValue("application/json"));
         });
     }
+
+    private static void AddAuth(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
+    {
+        // Singleton: no state, no dependencies, safe to share across every request.
+        services.AddSingleton<IOtpService, OtpService>();
+
+        services.AddOptions<JwtOptions>()
+            .Bind(configuration.GetSection(JwtOptions.SectionName))
+            .ValidateDataAnnotations()
+            // Same reasoning as AiServiceOptions: a signing key that's missing or too
+            // short should stop the container booting, not surface as a broken login
+            // three requests into a demo.
+            .ValidateOnStart();
+
+        services.AddSingleton<ITokenService, TokenService>();
+
+        if (environment.IsDevelopment())
+        {
+            services.AddSingleton<IEmailSender, DevConsoleEmailSender>();
+        }
+
+        // TODO: register a real IEmailSender for non-Development environments (SendGrid,
+        // SES, etc.). Until then, staging/production boot with no email sender registered
+        // at all, which fails loudly (a missing DI registration) the first time
+        // RequestOtpCommand tries to resolve one - which is the correct failure mode: a
+        // silently-discarded login code would be far worse than a startup-time crash.
+    }
+
+
 }

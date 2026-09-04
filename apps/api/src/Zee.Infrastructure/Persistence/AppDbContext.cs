@@ -44,9 +44,25 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
+        // Extensions are declared HERE, not in a database init script.
+        //
+        // ZEE runs on Neon, which is a managed service - there is no
+        // docker-entrypoint-initdb.d hook to drop a .sql file into. Declaring them on the
+        // model means EF Core emits `CREATE EXTENSION IF NOT EXISTS` in the migration, so
+        // they are applied by `dotnet ef database update` like everything else and the
+        // schema has exactly one source of truth. Neon permits all three without
+        // superuser rights.
+        //
         // pgvector is enabled now so Phase 2 can add embedding columns without a migration
         // scramble. Nothing in Phase 1 uses it, and an unused extension costs nothing.
         modelBuilder.HasPostgresExtension("vector");
+
+        // Case-insensitive text, available for future use. Emails are normalised to
+        // lowercase in the domain layer instead, so ordinary indexes still apply.
+        modelBuilder.HasPostgresExtension("citext");
+
+        // Trigram indexes, for search over post and group names later on.
+        modelBuilder.HasPostgresExtension("pg_trgm");
 
         // Picks up every IEntityTypeConfiguration<T> in this assembly, so adding an entity
         // means adding one configuration file - never editing this method.

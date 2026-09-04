@@ -1,0 +1,47 @@
+[project]
+name = "zee-ai-service"
+version = "0.1.0"
+description = "ZEE AI service — chatbot, student matching and feed ranking (Phase 1: mocked)"
+requires-python = ">=3.11"
+
+# ---------------------------------------------------------------------------
+# Ruff — linting and formatting. One tool instead of flake8 + isort + black,
+# which is faster and removes the three-way config disagreements that come with
+# running them separately.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort — import ordering
+    "B",    # flake8-bugbear — likely bugs
+    "S",    # flake8-bandit — security checks
+    "UP",   # pyupgrade — modern syntax
+    "ASYNC",# async correctness
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    # FastAPI's whole dependency-injection model is function calls in argument
+    # defaults (Depends(...), Header(...)). B008 flags exactly that pattern.
+    "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# S101: assert is how pytest works.
+"tests/*" = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+# Stubs for third-party packages are inconsistent; do not fail the build on them.
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

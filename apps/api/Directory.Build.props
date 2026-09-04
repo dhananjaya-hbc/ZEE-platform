@@ -1,0 +1,29 @@
+<Project>
+
+  <!--
+    Settings shared by every project in the ZEE API solution.
+
+    Anything here applies to Domain, Application, Infrastructure, Api and all the
+    test projects, so individual .csproj files stay short and only describe what
+    is genuinely specific to them.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Nullable reference types are on everywhere. The domain model leans on them
+         heavily: a non-nullable property is a documented invariant. -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <!-- CI builds add -warnaserror. Local builds stay warning-only so a work in
+         progress is still runnable. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+</Project>

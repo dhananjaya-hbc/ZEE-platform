@@ -13,6 +13,7 @@ namespace Zee.Domain.Entities;
 /// </remarks>
 public sealed class GroupMembership : Entity
 {
+    /// <summary>Required by EF Core.</summary>
     private GroupMembership()
     {
     }
@@ -41,8 +42,19 @@ public sealed class GroupMembership : Entity
     /// <summary>Navigation property. Populated only when a query explicitly includes it.</summary>
     public User? User { get; private set; }
 
-    internal static GroupMembership Create(Guid groupId, Guid userId, bool isModerator = false) =>
-        new(NewId(), Guard.NotEmpty(groupId), Guard.NotEmpty(userId), isModerator);
+    /// <summary>
+    /// Creates a membership record.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately <c>internal</c>: memberships are only ever created through
+    /// <see cref="Entities.Group.AddMember"/>, which is the only place that can see the
+    /// other members and enforce "no duplicates" and "never zero moderators". A public
+    /// constructor here would let callers route around both rules.
+    /// </remarks>
+    ///
+    /// TODO: Implement (guard both ids against Guid.Empty).
+    internal static GroupMembership Create(Guid groupId, Guid userId, bool isModerator = false)
+        => throw new NotImplementedException();
 
     /// <summary>Grants moderator rights.</summary>
     public void PromoteToModerator() => IsModerator = true;

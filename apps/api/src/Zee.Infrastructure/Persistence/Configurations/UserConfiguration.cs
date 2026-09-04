@@ -5,24 +5,52 @@ using Zee.Domain.Entities;
 namespace Zee.Infrastructure.Persistence.Configurations;
 
 /// <summary>EF Core mapping for <see cref="User"/>.</summary>
-///
-/// TODO: Implement Configure. (Empty body is deliberate - see UniversityConfiguration.)
-/// Acceptance criteria:
-///   - ToTable("users"). Key: Id.
-///   - Email: required, max 254, with a UNIQUE index. The uniqueness constraint has to
-///     exist in the database, not just in a handler's "does this email exist" check -
-///     two concurrent signups can both pass that check before either commits.
-///   - Name: required, max 100. Major: optional, max 100. Year: optional int.
-///   - Courses / Interests map to the private _courses and _interests backing fields as
-///     text[], via PropertyAccessMode.Field.
-///   - Relationship: many Users to one University, HasForeignKey(u => u.UniversityId),
-///     OnDelete(DeleteBehavior.Restrict). Deleting a university must not silently cascade
-///     away every student on that campus.
-///   - Index on UniversityId - campus-scoped queries filter on it constantly.
 public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
     {
-        // Mapping goes here. See the acceptance criteria above.
+        builder.ToTable("users");
+        builder.HasKey(u => u.Id);
+
+        builder.Property(u => u.Email)
+            .IsRequired()
+            .HasMaxLength(254);
+
+        // The database-level guarantee behind IUserRepository.ExistsByEmailAsync - that
+        // check alone cannot stop two concurrent sign-ups both passing it before either
+        // commits.
+        builder.HasIndex(u => u.Email)
+            .IsUnique();
+
+        builder.Property(u => u.Name)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        builder.Property(u => u.Major)
+            .HasMaxLength(100);
+
+        builder.Property(u => u.Courses)
+            .HasField("_courses")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasColumnName("courses")
+            .HasColumnType("text[]");
+
+        builder.Property(u => u.Interests)
+            .HasField("_interests")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasColumnName("interests")
+            .HasColumnType("text[]");
+
+        builder.Property(u => u.CreatedAt)
+            .IsRequired();
+
+        builder.HasOne(u => u.University)
+            .WithMany()
+            .HasForeignKey(u => u.UniversityId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Campus-scoped queries (the feed's University-visibility filter, the events
+        // calendar, etc.) all filter on this column.
+        builder.HasIndex(u => u.UniversityId);
     }
 }

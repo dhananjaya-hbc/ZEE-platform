@@ -20,22 +20,18 @@ public sealed class University : Entity
 {
     private readonly List<string> _verifiedEmailDomains = [];
 
+    /// <summary>Required by EF Core.</summary>
     private University()
     {
     }
 
-    private University(Guid id, string name, string country, IEnumerable<string> verifiedEmailDomains)
+    private University(Guid id, string name, string country)
         : base(id)
     {
         Name = name;
         Country = country;
         IsActive = true;
         CreatedAt = DateTimeOffset.UtcNow;
-
-        foreach (var domain in verifiedEmailDomains)
-        {
-            AddVerifiedDomain(domain);
-        }
     }
 
     /// <summary>Display name, e.g. "Massachusetts Institute of Technology".</summary>
@@ -58,59 +54,42 @@ public sealed class University : Entity
 
     public DateTimeOffset CreatedAt { get; private set; }
 
-    /// <summary>Onboards a university with at least one verified email domain.</summary>
+    /// <summary>
+    /// Onboards a university with at least one verified email domain.
+    /// </summary>
     /// <exception cref="DomainException">
     /// If the name or country is blank, the country is not a two-letter code, or no valid
     /// domain was supplied.
     /// </exception>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - Name trimmed, required, max 200 chars.
+    ///   - Country uppercased and required to be exactly 2 letters (ISO 3166-1 alpha-2).
+    ///   - Every supplied domain is normalised and added; at least one must survive,
+    ///     otherwise throw ("A university must have at least one verified email domain").
+    ///   - IsActive starts true.
     public static University Create(string name, string country, IEnumerable<string> verifiedEmailDomains)
-    {
-        ArgumentNullException.ThrowIfNull(verifiedEmailDomains);
-
-        var normalisedName = Guard.NotEmptyAndAtMost(name, 200);
-        var normalisedCountry = Guard.NotEmpty(country).ToUpperInvariant();
-
-        if (normalisedCountry.Length != 2)
-        {
-            throw new DomainException("country must be a two-letter ISO 3166-1 alpha-2 code.");
-        }
-
-        var university = new University(NewId(), normalisedName, normalisedCountry, verifiedEmailDomains);
-
-        if (university._verifiedEmailDomains.Count == 0)
-        {
-            throw new DomainException("A university must have at least one verified email domain.");
-        }
-
-        return university;
-    }
+        => throw new NotImplementedException();
 
     /// <summary>
-    /// Adds a domain to the allowlist. Accepts "@mit.edu", "MIT.EDU" or "mit.edu" and
-    /// stores the normalised form. Adding a domain that is already present is a no-op.
+    /// Adds a domain to the allowlist. Must accept "@mit.edu", "MIT.EDU" or "mit.edu" and
+    /// store the normalised form. Adding a domain already present is a no-op.
     /// </summary>
+    ///
+    /// TODO: Implement, along with the private NormaliseDomain helper below.
     public void AddVerifiedDomain(string domain)
-    {
-        var normalised = NormaliseDomain(domain);
-
-        if (!_verifiedEmailDomains.Contains(normalised, StringComparer.Ordinal))
-        {
-            _verifiedEmailDomains.Add(normalised);
-        }
-    }
+        => throw new NotImplementedException();
 
     /// <summary>Removes a domain from the allowlist. The last domain cannot be removed.</summary>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - Removing a domain that is not present is a no-op.
+    ///   - Removing the only remaining domain throws DomainException - a university with
+    ///     no domains can never authenticate anyone and is silently broken.
     public void RemoveVerifiedDomain(string domain)
-    {
-        var normalised = NormaliseDomain(domain);
-
-        if (_verifiedEmailDomains.Count == 1 && _verifiedEmailDomains.Contains(normalised, StringComparer.Ordinal))
-        {
-            throw new DomainException("A university must keep at least one verified email domain.");
-        }
-
-        _verifiedEmailDomains.Remove(normalised);
-    }
+        => throw new NotImplementedException();
 
     /// <summary>Suspends sign-in for this campus. Existing content is untouched.</summary>
     public void Deactivate() => IsActive = false;
@@ -122,43 +101,30 @@ public sealed class University : Entity
     /// Whether the given address belongs to this university.
     /// </summary>
     /// <remarks>
-    /// Matches the domain exactly rather than by suffix. Suffix matching would be a
-    /// serious hole: <c>notmit.edu</c> ends with <c>mit.edu</c> under a naive
-    /// <c>EndsWith</c> check, and <c>evil.com/@mit.edu</c> style tricks rely on exactly
-    /// that sort of sloppiness. Subdomains must be listed explicitly.
+    /// <b>Match the domain exactly, never by suffix.</b> Suffix matching is a serious
+    /// security hole: <c>notmit.edu</c> ends with <c>mit.edu</c> under a naive
+    /// <c>EndsWith</c> check, which would let anyone who can register a lookalike domain
+    /// join a campus. Subdomains must be listed explicitly instead.
     /// </remarks>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - Split on the LAST '@'; return false for null/blank/malformed input.
+    ///   - Compare the lowercased domain for exact equality against the allowlist.
+    ///   - Regression test required: a university with "mit.edu" must REJECT
+    ///     "someone@notmit.edu" and "someone@mit.edu.evil.com".
     public bool AcceptsEmail(string email)
-    {
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            return false;
-        }
+        => throw new NotImplementedException();
 
-        var atIndex = email.LastIndexOf('@');
-
-        if (atIndex < 0 || atIndex == email.Length - 1)
-        {
-            return false;
-        }
-
-        var domain = email[(atIndex + 1)..].Trim().ToLowerInvariant();
-
-        return _verifiedEmailDomains.Contains(domain, StringComparer.Ordinal);
-    }
-
+    /// <summary>
+    /// Normalises a domain for storage: trims, strips a leading '@', lowercases, and
+    /// rejects anything that is not a plausible domain.
+    /// </summary>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - Rejects values with no dot, a leading/trailing dot, whitespace, or an '@'.
+    ///   - Max length 253 (the DNS limit).
     private static string NormaliseDomain(string domain)
-    {
-        var normalised = Guard.NotEmptyAndAtMost(domain, 253).TrimStart('@').ToLowerInvariant();
-
-        if (!normalised.Contains('.', StringComparison.Ordinal) ||
-            normalised.StartsWith('.') ||
-            normalised.EndsWith('.') ||
-            normalised.Contains(' ', StringComparison.Ordinal) ||
-            normalised.Contains('@', StringComparison.Ordinal))
-        {
-            throw new DomainException($"'{domain}' is not a valid email domain.");
-        }
-
-        return normalised;
-    }
+        => throw new NotImplementedException();
 }

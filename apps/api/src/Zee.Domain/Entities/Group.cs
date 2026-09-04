@@ -17,6 +17,7 @@ public sealed class Group : Entity
 {
     private readonly List<GroupMembership> _members = [];
 
+    /// <summary>Required by EF Core.</summary>
     private Group()
     {
     }
@@ -51,95 +52,58 @@ public sealed class Group : Entity
     public IReadOnlyCollection<GroupMembership> Members => _members.AsReadOnly();
 
     /// <summary>
-    /// Creates a group. The creator is enrolled immediately as its first moderator, so a
-    /// group is never left without anyone able to administer it.
+    /// Creates a group and enrols the creator as its first moderator.
     /// </summary>
     /// <exception cref="DomainException">
     /// If the name is blank, or the type and campus scope contradict each other.
     /// </exception>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - type must be a defined enum member; creatorId must not be Guid.Empty.
+    ///   - GlobalInterest + non-null universityId  -> throw.
+    ///   - Any other type + null universityId      -> throw.
+    ///   - Name required, trimmed, max 120. Description optional, max 1000.
+    ///   - The creator is added immediately as a moderator, so a group is never left with
+    ///     nobody able to administer it.
     public static Group Create(
         string name,
         GroupType type,
         Guid creatorId,
         Guid? universityId = null,
         string? description = null)
-    {
-        Guard.DefinedEnum(type);
-        Guard.NotEmpty(creatorId);
+        => throw new NotImplementedException();
 
-        if (type == GroupType.GlobalInterest && universityId is not null)
-        {
-            throw new DomainException(
-                "A GlobalInterest group spans campuses and must not specify a universityId.");
-        }
-
-        if (type != GroupType.GlobalInterest && universityId is null)
-        {
-            throw new DomainException($"A {type} group must specify the universityId it belongs to.");
-        }
-
-        if (universityId is not null)
-        {
-            Guard.NotEmpty(universityId.Value, nameof(universityId));
-        }
-
-        var group = new Group(
-            NewId(),
-            Guard.NotEmptyAndAtMost(name, 120),
-            type,
-            universityId,
-            Guard.OptionalAtMost(description, 1000));
-
-        group._members.Add(GroupMembership.Create(group.Id, creatorId, isModerator: true));
-
-        return group;
-    }
-
-    /// <summary>Adds a member. Joining twice is a no-op rather than an error.</summary>
+    /// <summary>Adds a member. Joining twice must be a no-op rather than an error.</summary>
+    /// <returns>The new membership, or the existing one if already a member.</returns>
+    ///
+    /// TODO: Implement.
     public GroupMembership AddMember(Guid userId, bool isModerator = false)
-    {
-        Guard.NotEmpty(userId);
+        => throw new NotImplementedException();
 
-        var existing = _members.Find(m => m.UserId == userId);
-
-        if (existing is not null)
-        {
-            return existing;
-        }
-
-        var membership = GroupMembership.Create(Id, userId, isModerator);
-        _members.Add(membership);
-
-        return membership;
-    }
-
-    /// <summary>
-    /// Removes a member. Refuses to remove the last moderator, which would leave the group
-    /// unadministrable.
-    /// </summary>
+    /// <summary>Removes a member.</summary>
+    /// <remarks>
+    /// Must refuse to remove the last remaining moderator - that would leave the group
+    /// permanently unadministrable, with no path to recovery through the API.
+    /// </remarks>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - Removing a non-member is a no-op.
+    ///   - Removing the sole moderator throws DomainException.
     public void RemoveMember(Guid userId)
-    {
-        var membership = _members.Find(m => m.UserId == userId);
-
-        if (membership is null)
-        {
-            return;
-        }
-
-        if (membership.IsModerator && _members.Count(m => m.IsModerator) == 1)
-        {
-            throw new DomainException("A group must keep at least one moderator.");
-        }
-
-        _members.Remove(membership);
-    }
+        => throw new NotImplementedException();
 
     /// <summary>Whether the given student is a member.</summary>
-    public bool HasMember(Guid userId) => _members.Exists(m => m.UserId == userId);
+    ///
+    /// TODO: Implement.
+    public bool HasMember(Guid userId)
+        => throw new NotImplementedException();
 
+    /// <summary>Updates the editable details of a group.</summary>
+    /// <remarks><see cref="Type"/> and <see cref="UniversityId"/> are fixed at creation.</remarks>
+    ///
+    /// TODO: Implement.
     public void UpdateDetails(string name, string? description)
-    {
-        Name = Guard.NotEmptyAndAtMost(name, 120);
-        Description = Guard.OptionalAtMost(description, 1000);
-    }
+        => throw new NotImplementedException();
 }

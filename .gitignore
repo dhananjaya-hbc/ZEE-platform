@@ -1,0 +1,59 @@
+# ---- Secrets -------------------------------------------------------------
+# Never commit real env files. Only *.env.example files are tracked.
+.env
+.env.*
+!.env.example
+!*.env.example
+
+# ---- .NET ----------------------------------------------------------------
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+*.coverage
+coverage.*.xml
+
+# ---- Node / Next.js ------------------------------------------------------
+node_modules/
+.next/
+out/
+build/
+.turbo/
+*.tsbuildinfo
+.pnpm-store/
+npm-debug.log*
+yarn-error.log*
+
+# PWA service worker artifacts (generated at build time)
+apps/web/public/sw.js
+apps/web/public/workbox-*.js
+apps/web/public/sw.js.map
+
+# ---- Python --------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# ---- Docker / local data -------------------------------------------------
+infra/data/
+*.pid
+
+# ---- Editors / OS --------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json

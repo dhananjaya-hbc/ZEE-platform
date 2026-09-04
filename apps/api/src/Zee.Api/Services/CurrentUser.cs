@@ -15,14 +15,12 @@ namespace Zee.Api.Services;
 /// </remarks>
 public sealed class CurrentUser(IHttpContextAccessor accessor) : ICurrentUser
 {
-    /// <summary>Claim carrying the student's university id. Issued at sign-in.</summary>
-    public const string UniversityIdClaimType = "zee:university_id";
-
     private readonly IHttpContextAccessor _accessor = accessor;
 
     public Guid? UserId => ParseGuidClaim(ClaimTypes.NameIdentifier);
 
-    public Guid? UniversityId => ParseGuidClaim(UniversityIdClaimType);
+    public Guid? UniversityId => ParseGuidClaim(ICurrentUser.UniversityIdClaimType);
+
 
     public bool IsAuthenticated => _accessor.HttpContext?.User.Identity?.IsAuthenticated ?? false;
 

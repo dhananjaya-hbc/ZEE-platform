@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Application: use cases as MediatR commands and queries, their handlers,
+    FluentValidation validators, DTOs, and the interfaces Infrastructure implements
+    (IAiServiceClient lives here, its HTTP implementation does not).
+
+    Depends on Domain only. No EF Core, no HttpClient, no ASP.NET.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Zee.Domain\Zee.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

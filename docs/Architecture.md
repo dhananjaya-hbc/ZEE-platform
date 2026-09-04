@@ -101,6 +101,10 @@ declares no packages at all.
 
 ## Data model
 
+**The database is [Neon](https://neon.com), not a container** — see
+[Database.md](Database.md) for why and how it is configured. Everything below is
+ordinary PostgreSQL; nothing in the model or the queries is Neon-specific.
+
 ```
 University 1───* User
     │              │
@@ -238,7 +242,7 @@ Honest list of what Phase 1 does not do. Several are good contributions.
 | Gap | Notes |
 | --- | --- |
 | **Most handlers are stubs** | By design — see CONTRIBUTING.md. They return 501. |
-| **Integration tests use the in-memory provider** | Not a relational database: ignores unique indexes and foreign keys, and cannot verify a query translates to SQL. Right for "does the pipeline work", wrong for "is this query correct". Moving to Testcontainers with a real pgvector Postgres is a wanted contribution. |
+| **Integration tests use the in-memory provider** | Not a relational database: ignores unique indexes and foreign keys, and cannot verify a query translates to SQL. Right for "does the pipeline work", wrong for "is this query correct". A Neon branch per CI run — see [Database.md](Database.md#branching) — is the wanted fix, and needs no Testcontainers/Docker-in-CI setup since Neon is already remote. |
 | **No EF Core migrations yet** | The configurations are stubs, so the schema comes from EF conventions. Generate the initial migration once they are implemented. |
 | **No rate limiting** | `request-otp` especially needs it — without it that endpoint is an open mail relay pointed at any institutional inbox. `IEmailVerificationCodeRepository.CountIssuedSinceAsync` exists to back it. |
 | **No email sending** | Development logs the OTP instead. A real provider is needed before any pilot. |

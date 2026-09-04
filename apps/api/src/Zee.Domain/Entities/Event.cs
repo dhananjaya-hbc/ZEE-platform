@@ -1,4 +1,5 @@
 using Zee.Domain.Common;
+using Zee.Domain.Enums;
 
 namespace Zee.Domain.Entities;
 
@@ -15,6 +16,7 @@ public sealed class Event : Entity
 {
     private readonly List<Rsvp> _rsvps = [];
 
+    /// <summary>Required by EF Core.</summary>
     private Event()
     {
     }
@@ -68,9 +70,17 @@ public sealed class Event : Entity
     /// <summary>Responses to this event.</summary>
     public IReadOnlyCollection<Rsvp> Rsvps => _rsvps.AsReadOnly();
 
+    /// <summary>Creates an event listing.</summary>
     /// <exception cref="DomainException">
     /// If the title or location is blank, or the event does not end after it starts.
     /// </exception>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - universityId and createdBy must not be Guid.Empty.
+    ///   - endTime must be strictly after startTime.
+    ///   - Title required, max 200. Location required, max 300. Description optional, max 5000.
+    ///   - Times stored as UTC.
     public static Event Create(
         string title,
         Guid universityId,
@@ -79,69 +89,38 @@ public sealed class Event : Entity
         DateTimeOffset endTime,
         Guid createdBy,
         string? description = null)
-    {
-        Guard.NotEmpty(universityId);
-        Guard.NotEmpty(createdBy);
-        Guard.EndAfterStart(startTime, endTime, "An event");
-
-        return new Event(
-            NewId(),
-            Guard.NotEmptyAndAtMost(title, 200),
-            universityId,
-            Guard.NotEmptyAndAtMost(location, 300),
-            startTime.ToUniversalTime(),
-            endTime.ToUniversalTime(),
-            Guard.OptionalAtMost(description, 5000),
-            createdBy);
-    }
+        => throw new NotImplementedException();
 
     /// <summary>
-    /// Records or updates a student's response. Answering twice updates the existing RSVP
-    /// rather than creating a duplicate.
+    /// Records or updates a student's response.
     /// </summary>
-    public Rsvp Respond(Guid userId, Enums.RsvpStatus status)
-    {
-        Guard.NotEmpty(userId);
-        Guard.DefinedEnum(status);
-
-        var existing = _rsvps.Find(r => r.UserId == userId);
-
-        if (existing is not null)
-        {
-            existing.ChangeStatus(status);
-            return existing;
-        }
-
-        var rsvp = Rsvp.Create(Id, userId, status);
-        _rsvps.Add(rsvp);
-
-        return rsvp;
-    }
+    /// <remarks>
+    /// Lives on Event rather than on Rsvp because enforcing one-response-per-student
+    /// requires seeing the other responses, and Event is the aggregate that holds them.
+    /// </remarks>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - Responding twice UPDATES the existing RSVP rather than adding a duplicate.
+    ///   - status must be a defined enum member; userId must not be Guid.Empty.
+    public Rsvp Respond(Guid userId, RsvpStatus status)
+        => throw new NotImplementedException();
 
     /// <summary>Withdraws a student's response entirely.</summary>
+    /// <remarks>Withdrawing removes the row; there is no "not going" status. See <see cref="RsvpStatus"/>.</remarks>
+    ///
+    /// TODO: Implement (removing a non-existent response is a no-op).
     public void WithdrawResponse(Guid userId)
-    {
-        var existing = _rsvps.Find(r => r.UserId == userId);
+        => throw new NotImplementedException();
 
-        if (existing is not null)
-        {
-            _rsvps.Remove(existing);
-        }
-    }
-
+    /// <summary>Updates the editable details of an event.</summary>
+    ///
+    /// TODO: Implement, reusing the same rules as Create.
     public void UpdateDetails(
         string title,
         string location,
         DateTimeOffset startTime,
         DateTimeOffset endTime,
         string? description)
-    {
-        Guard.EndAfterStart(startTime, endTime, "An event");
-
-        Title = Guard.NotEmptyAndAtMost(title, 200);
-        Location = Guard.NotEmptyAndAtMost(location, 300);
-        StartTime = startTime.ToUniversalTime();
-        EndTime = endTime.ToUniversalTime();
-        Description = Guard.OptionalAtMost(description, 5000);
-    }
+        => throw new NotImplementedException();
 }

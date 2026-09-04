@@ -36,16 +36,35 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("Postgres")
             ?? throw new InvalidOperationException(
-                "Connection string 'Postgres' is not configured. Copy .env.example to .env.");
+                "Connection string 'Postgres' is not configured. ZEE uses Neon (serverless "
+                + "PostgreSQL) - create a free project at https://neon.com, then copy "
+                + "infra/.env.example to infra/.env and set DATABASE_URL. "
+                + "See docs/Database.md.");
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
             {
                 npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
 
-                // Transient network faults are normal between containers, especially during
-                // startup when Postgres may still be accepting its first connections.
-                npgsql.EnableRetryOnFailure(maxRetryCount: 3, TimeSpan.FromSeconds(5), null);
+                // Tuned for Neon rather than a local container.
+                //
+                // Neon scales compute to zero after a few minutes idle, so the first query
+                // after a quiet period pays a resume - usually well under a second, but it
+                // can surface as a transient connection failure rather than slow success.
+                // Retrying is the difference between that being invisible and it being a
+                // 500 for whoever happened to make the first request of the morning.
+                //
+                // More attempts and a longer ceiling than a local database would need,
+                // because the failure being absorbed here is a cold start, not a crash.
+                npgsql.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
+                    errorCodesToAdd: null);
+
+                // Neon is remote, so every query crosses a network. The default 30s is
+                // long enough that a hung query holds a request open well past the point
+                // the caller has given up.
+                npgsql.CommandTimeout(30);
             }));
 
         // The DbContext IS the unit of work - its change tracker already accumulates the

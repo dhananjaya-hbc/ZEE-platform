@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Zee.Domain.Common;
 using Zee.Domain.Enums;
 
@@ -31,6 +29,7 @@ public sealed class EmailVerificationCode : Entity
     /// <summary>How long an issued code stays valid.</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(10);
 
+    /// <summary>Required by EF Core.</summary>
     private EmailVerificationCode()
     {
     }
@@ -70,54 +69,49 @@ public sealed class EmailVerificationCode : Entity
     /// <summary>True once redeemed.</summary>
     public bool IsConsumed => ConsumedAt is not null;
 
-    /// <summary>Issues a code for an address that has already been matched to a university.</summary>
-    /// <exception cref="DomainException">If the email, university or hash is missing.</exception>
-    public static EmailVerificationCode Create(string email, Guid universityId, string codeHash) =>
-        new(NewId(),
-            User.NormaliseEmail(email),
-            Guard.NotEmpty(universityId),
-            Guard.NotEmptyAndAtMost(codeHash, 200),
-            DateTimeOffset.UtcNow.Add(Lifetime));
+    /// <summary>
+    /// Issues a code for an address that has already been matched to a university.
+    /// </summary>
+    /// <param name="codeHash">
+    /// Digest of the code. <b>Never pass the plaintext.</b> Hashing happens in
+    /// Infrastructure so the algorithm choice stays out of the Domain layer.
+    /// </param>
+    ///
+    /// TODO: Implement.
+    /// Acceptance criteria:
+    ///   - Email normalised via User.NormaliseEmail; universityId must not be Guid.Empty.
+    ///   - codeHash required, max 200 chars.
+    ///   - ExpiresAt = UtcNow + Lifetime. AttemptCount starts 0, ConsumedAt starts null.
+    public static EmailVerificationCode Create(string email, Guid universityId, string codeHash)
+        => throw new NotImplementedException();
 
     /// <summary>
     /// Checks a candidate digest, recording the attempt and consuming the code on success.
     /// </summary>
     /// <param name="candidateHash">The digest of the code the student submitted.</param>
-    /// <remarks>
-    /// Order matters here. Already-used and expired codes are rejected before any
-    /// comparison happens, so a spent code cannot be used to keep probing. Comparison uses
-    /// <see cref="CryptographicOperations.FixedTimeEquals"/> rather than string equality:
-    /// ordinary comparison returns as soon as two bytes differ, and that timing difference
-    /// is measurable enough to reconstruct a digest byte by byte.
-    /// </remarks>
+    ///
+    /// TODO: Implement. SECURITY-SENSITIVE - please read all of this before starting.
+    ///
+    /// Acceptance criteria:
+    ///   1. Check state BEFORE comparing, and return in this order:
+    ///        IsConsumed                 -> AlreadyUsed
+    ///        AttemptCount >= MaxAttempts -> TooManyAttempts
+    ///        UtcNow >= ExpiresAt         -> Expired
+    ///      The order matters. Comparing first would let a spent or dead code keep acting
+    ///      as an oracle for whether a guess was right.
+    ///
+    ///   2. Compare with System.Security.Cryptography.CryptographicOperations.FixedTimeEquals
+    ///      over the UTF-8 bytes - NOT string == and NOT string.Equals. Ordinary comparison
+    ///      returns as soon as two bytes differ, and that timing difference is measurable
+    ///      enough over many requests to reconstruct a digest byte by byte.
+    ///
+    ///   3. On mismatch: increment AttemptCount, return IncorrectCode.
+    ///      On match: set ConsumedAt = UtcNow, return Success. Codes are single-use.
+    ///
+    ///   4. Treat a null candidateHash as a plain mismatch, not an exception.
+    ///
+    /// Tests must cover: success, wrong code, expiry, reuse of a consumed code, and the
+    /// attempt cap burning the code even when the 6th guess is correct.
     public OtpVerificationResult Verify(string candidateHash)
-    {
-        if (IsConsumed)
-        {
-            return OtpVerificationResult.AlreadyUsed;
-        }
-
-        if (AttemptCount >= MaxAttempts)
-        {
-            return OtpVerificationResult.TooManyAttempts;
-        }
-
-        if (DateTimeOffset.UtcNow >= ExpiresAt)
-        {
-            return OtpVerificationResult.Expired;
-        }
-
-        var expected = Encoding.UTF8.GetBytes(CodeHash);
-        var candidate = Encoding.UTF8.GetBytes(candidateHash ?? string.Empty);
-
-        if (!CryptographicOperations.FixedTimeEquals(expected, candidate))
-        {
-            AttemptCount++;
-            return OtpVerificationResult.IncorrectCode;
-        }
-
-        ConsumedAt = DateTimeOffset.UtcNow;
-
-        return OtpVerificationResult.Success;
-    }
+        => throw new NotImplementedException();
 }

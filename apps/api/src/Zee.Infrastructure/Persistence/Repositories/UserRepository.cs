@@ -13,13 +13,18 @@ public sealed class UserRepository(AppDbContext db) : IUserRepository
     public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         => throw new NotImplementedException();
 
-    /// TODO: Implement.
-    /// Normalise the address with User.NormaliseEmail before comparing. Do NOT use
-    /// ToLower() in the LINQ query - that produces a lower(email) call PostgreSQL cannot
-    /// serve from the plain unique index, turning every sign-in into a sequential scan.
-    /// Emails are stored already-normalised precisely so this can be a direct equality match.
-    public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    /// <summary>
+    /// Looks a student up by institutional address. Returns a TRACKED entity - callers
+    /// (VerifyOtpCommandHandler in particular) mutate it via MarkSeen() and rely on
+    /// IUnitOfWork.SaveChangesAsync to persist that, which requires tracking.
+    /// </summary>
+    public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var normalised = User.NormaliseEmail(email);
+
+        return await _db.Users
+            .FirstOrDefaultAsync(u => u.Email == normalised, cancellationToken);
+    }
 
     /// TODO: Implement with AnyAsync - cheaper than loading the row.
     public Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)

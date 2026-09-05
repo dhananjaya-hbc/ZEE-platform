@@ -83,6 +83,12 @@ cd apps/ai-service && pip install -r requirements-dev.txt && uvicorn app.main:ap
 The API needs `ConnectionStrings__Postgres` set to your Neon branch even for `dotnet
 run` — set it in `apps/api/.env` or export it directly.
 
+**Sign-in won't work yet.** Your branch starts with zero onboarded universities, and
+`request-otp` 404s against any email domain nothing has claimed. Seed one test
+university into your own branch — see
+[Seeding a university](docs/Database.md#seeding-a-university) — before testing anything
+that requires being signed in.
+
 ## Picking up a task
 
 The scaffolding marks unimplemented work with `TODO`, and each one carries the

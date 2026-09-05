@@ -11,6 +11,7 @@ a Neon branch.
 - [Pooled vs direct endpoints](#pooled-vs-direct-endpoints)
 - [Connection string format](#connection-string-format)
 - [Migrations](#migrations)
+- [Seeding a university](#seeding-a-university)
 - [Branching](#branching)
 - [Scale-to-zero and cold starts](#scale-to-zero-and-cold-starts)
 - [Extensions](#extensions)
@@ -101,10 +102,11 @@ EF Core owns the schema. There is no init script — extensions are declared on 
 in `AppDbContext.OnModelCreating`, so `CREATE EXTENSION` lands in the migration like
 everything else and the schema has exactly one source of truth.
 
-> **Phase 1 status:** no migrations exist yet. The EF configurations are still stubs, so
-> generating an initial migration now would bake in a conventions-only schema that would
-> immediately need replacing. Generate it once
-> `src/Zee.Infrastructure/Persistence/Configurations/` is implemented.
+> **Current status:** `InitialCreate` exists and is applied — it covers the entities
+> implemented so far (`University`, `User`, `EmailVerificationCode`). As each remaining
+> `IEntityTypeConfiguration` stub gets implemented (see the open issues), generate a new
+> migration for it with `dotnet ef migrations add <Name>` using the same command below —
+> don't fold unrelated schema changes into `InitialCreate`.
 
 Run migrations against the **direct** endpoint:
 
@@ -129,6 +131,45 @@ dotnet ef database update \
 **In production, migrations are a deployment step, not a startup step.** `Program.cs`
 calls `MigrateAsync` only in Development — two instances starting together would
 otherwise race to migrate the same database.
+
+## Seeding a university
+
+Sign-in only works for an email domain an onboarded `University` row has claimed —
+without one, `request-otp` always 404s. Every contributor works on their **own** Neon
+branch ([Branching](#branching), and see `CONTRIBUTING.md`), so nobody's branch has any
+universities in it until you put one there. Seeding your own branch with a test row is
+expected and fine; it's not the same thing as onboarding a university on the real,
+shared platform.
+
+> **This is your own branch, not the shared database.** Onboarding a university on the
+> real platform is deliberately owner-reviewed and manual — see `README.md`'s
+> [Auth flow](../README.md#auth-flow) section for why. Nothing below grants anyone else
+> that access; it only seeds data into the private branch you already control.
+
+There is no seed script or endpoint (that's the same deliberate gap, applied
+consistently). Insert the row directly, against your branch's connection string:
+
+```bash
+psql "$NEON_DATABASE_URL" <<'SQL'
+INSERT INTO universities (id, name, country, verified_email_domains, is_active, created_at)
+VALUES (
+  gen_random_uuid(),
+  'University of Moratuwa',
+  'LK',                    -- ISO 3166-1 alpha-2, exactly 2 letters, uppercase
+  ARRAY['uom.lk'],         -- lowercase, no leading '@' — the exact form
+                           -- FindByEmailDomainAsync matches against
+  true,
+  now()
+);
+SQL
+```
+
+`gen_random_uuid()` gives a plain random UUID rather than the app's usual UUIDv7 — fine
+here specifically, since `universities` is a tiny, rarely-inserted table where the
+time-ordering property that matters for high-volume tables (posts, etc.) buys nothing.
+
+Once the row exists, `you@uom.lk` (any address at that domain) can request and verify an
+OTP against your branch.
 
 ## Branching
 

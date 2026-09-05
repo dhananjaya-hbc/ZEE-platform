@@ -30,7 +30,7 @@ export function AppHeader() {
         <span className="tracking-wide text-gray-500">
           NOTIFICATIONS <span className="text-gray-400">· 3</span>
         </span>
-        <Button variant="default" className="bg-brand-700 hover:bg-brand-600">
+        <Button>
           New post
         </Button>
         <AvatarPlaceholder size="md" />

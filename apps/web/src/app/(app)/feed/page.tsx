@@ -54,13 +54,13 @@ export default function FeedPage() {
             <Input type="text" placeholder="Share something with your courses…" />
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-3 text-sm dark:border-gray-800">
-            <div className="flex gap-4 text-brand-600">
+            <div className="flex gap-4 text-primary">
               <span>Photo</span>
               <span>Poll</span>
               <span>Event</span>
               <span>Looking for team</span>
             </div>
-            <Button className="bg-brand-600 hover:bg-brand-700">Post</Button>
+            <Button>Post</Button>
           </div>
         </Card>
 
@@ -74,7 +74,7 @@ export default function FeedPage() {
                 <SkeletonLine className="w-56" />
               </div>
             </div>
-            <Badge className="bg-brand-100 text-brand-700 dark:bg-gray-800 dark:text-gray-300">
+            <Badge className="bg-primary/10 text-primary">
               CS 214 group
             </Badge>
           </div>
@@ -85,7 +85,7 @@ export default function FeedPage() {
             <SkeletonLine className="w-3/5" />
           </div>
 
-          <div className="flex h-64 items-center justify-center rounded-md border-2 border-dashed border-brand-500/40 bg-brand-100/40 text-sm font-semibold uppercase tracking-wide text-brand-500 dark:bg-gray-800">
+          <div className="flex h-64 items-center justify-center rounded-md border-2 border-dashed border-primary/40 bg-primary/10 text-sm font-semibold uppercase tracking-wide text-primary">
             Image attachment
           </div>
 
@@ -115,7 +115,7 @@ export default function FeedPage() {
                 <SkeletonLine className="w-32" />
               </div>
             </div>
-            <Badge variant="outline" className="border-brand-500 text-brand-600">
+            <Badge variant="outline" className="border-primary text-primary">
               competition
             </Badge>
           </div>
@@ -135,7 +135,7 @@ export default function FeedPage() {
           </div>
 
           <div className="flex gap-3">
-            <Button className="bg-brand-600 hover:bg-brand-700">Join team</Button>
+            <Button>Join team</Button>
             <Button variant="outline">View competition</Button>
           </div>
 
@@ -167,7 +167,7 @@ export default function FeedPage() {
             ))}
           </ul>
 
-          <Button className="mt-4 w-full bg-brand-700 hover:bg-brand-600">
+          <Button className="mt-4 w-full">
             See all matches
           </Button>
         </SidebarCard>
@@ -190,7 +190,7 @@ export default function FeedPage() {
         <SidebarCard
           title="Your groups"
           action={
-            <Badge className="bg-brand-100 text-brand-700 dark:bg-gray-800 dark:text-gray-300">
+            <Badge className="bg-primary/10 text-primary">
               4 new
             </Badge>
           }
@@ -213,7 +213,7 @@ export default function FeedPage() {
             Questions about deadlines, dining or clubs — answered from campus
             sources.
           </p>
-          <Button variant="link" className="mt-3 h-auto p-0 text-brand-600">
+          <Button variant="link" className="mt-3 h-auto p-0">
             Open chat
           </Button>
         </SidebarCard>

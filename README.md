@@ -18,9 +18,9 @@ acceptance criteria, waiting to be implemented.
 | | |
 | --- | --- |
 | ✅ Builds and runs | The whole stack starts with one `docker compose up` |
-| ✅ CI is green | 56 API tests: 53 skipped stubs, 2 passing smoke tests, 0 failures |
-| ⚠️ Endpoints return **501** | Routed and reachable, handler not implemented yet |
-| ⚠️ No EF migrations yet | The schema comes from EF conventions until the configurations are written |
+| ✅ CI is green | 70 API tests: 38 passing, 32 skipped stubs, 0 failures |
+| ✅ Institutional sign-in works | OTP request/verify, real Neon database, JWT issued and verified |
+| ⚠️ Everything else returns **501** | Routed and reachable, handler not implemented yet |
 
 **This is deliberate.** The point is that there is a lot of well-specified,
 self-contained work available to pick up. Every stub states exactly what it must do and
@@ -154,8 +154,9 @@ yourself an isolated branch.
 | Redis | `localhost:6379` |
 | Database | your Neon branch — see [docs/Database.md](docs/Database.md) |
 
-> **Note:** most endpoints currently return **501 Not Implemented** — that is the
-> scaffolding reporting itself honestly. `/health` works, and `/api/feed` correctly
+> **Note:** `/api/auth/request-otp` and `/api/auth/verify-otp` work end to end against
+> a real database. Everything else currently returns **501 Not Implemented** — that is
+> the scaffolding reporting itself honestly. `/health` works, and `/api/feed` correctly
 > returns 401 without a token.
 
 ## Running services individually

@@ -8,6 +8,72 @@ not here.
 
 ---
 
+## 2026-09-05 — Institutional sign-in implemented end to end; shadcn/ui added; feed page mocked
+
+The OTP auth flow described in [Architecture.md](Architecture.md#authentication) is no
+longer a plan — it is implemented, migrated to a real Neon database, and verified by
+actually signing in through the browser.
+
+**What changed on the API:**
+
+- Domain: `Guard`, `University` (including the exact-match domain check and its
+  lookalike-domain regression tests), `User`, `EmailVerificationCode` (constant-time
+  verify, attempt cap) — all implemented, no longer stubs.
+- Infrastructure: `OtpService` (SHA-256, not a slow password hash — the code is dead
+  in minutes regardless), `TokenService` (HMAC-SHA256 JWTs), `DevConsoleEmailSender`
+  (Development-only, logs the code instead of sending mail), plus the EF configurations
+  and repository methods the flow touches (`UniversityConfiguration`,
+  `UserConfiguration`, `EmailVerificationCodeConfiguration`,
+  `FindByEmailDomainAsync`, `GetByEmailAsync`, `GetActiveByEmailAsync`,
+  `CountIssuedSinceAsync`).
+- Application: `RequestOtpCommand` and `VerifyOtpCommand`, each with a rate limit
+  (`TooManyRequestsException` → 429) and a single fixed message for every OTP failure
+  (`InvalidOtpException` → 400) so a wrong guess, an expired code, and a code that was
+  never requested are indistinguishable to the caller.
+- Api: `AuthController` — the one controller marked `[AllowAnonymous]` at the class
+  level, since these two endpoints are the only ones reachable before a student has a
+  token at all.
+- `InitialCreate` migration generated and applied to a real Neon database. Verified live:
+  inserted a test `University` row (`uom.lk`, University of Moratuwa) and signed in
+  through the browser, code delivered via the dev logs.
+
+**What changed on the web app:**
+
+- `lib/auth.ts` / `lib/api-client.ts` implemented. Token storage is an **httpOnly
+  cookie** set by `app/api/session/route.ts` — chosen over localStorage specifically so
+  a stored-XSS bug elsewhere on the page cannot read the token. Consequence worth
+  remembering: client JS can never read that cookie again, so any *future* authenticated
+  call (feed, posts, chatbot) will need a Next.js server-side proxy route that reads the
+  cookie itself and attaches the Authorization header - not built yet, since nothing
+  today needs one.
+- The two-step sign-in screen (`app/page.tsx`) — email, then a 6-digit code, one step
+  visible at a time.
+- shadcn/ui initialised, then made to actually work: the CLI's generated code assumes
+  Tailwind v4 (`--spacing()` calc calls, `in-data-[...]` variants, `color-mix()`), which
+  this project's deliberately-v3 Tailwind setup cannot parse. `Button`, `Input`, `Card`,
+  `Badge` in `src/components/ui/` are hand-authored to the same API shape in classes
+  that actually compile — see [TechStack.md](TechStack.md) for the full note, including
+  why `npx shadcn add` should not be trusted verbatim in this repo. The CLI also tried
+  to switch `darkMode` to `'class'`, which would have silently broken every existing
+  `dark:` utility in the app (nothing anywhere applies a `.dark` class) - reverted to
+  the default media-query behaviour.
+- Feed page rebuilt as a static visual mock matching a shared wireframe, using the
+  "Ink wash" monochrome palette (`apps/web/tailwind.config.ts`). Reusable pieces
+  extracted to `src/components/`: `AppHeader`, `BottomNav` (shared by every page in the
+  `(app)` route group, not just feed), `SidebarCard`, `SkeletonLine`,
+  `AvatarPlaceholder`. The "Students like you" panel is explicitly labelled a static
+  preview - it is not the real AI matching feature, which stays Phase 2.
+
+**Deviations worth flagging:**
+
+- `getSession()` in `lib/auth.ts` is still a TODO. The JWT's id claim is
+  `ClaimTypes.NameIdentifier`, which .NET serialises as a long URI rather than a short
+  `"sub"` claim; decoding that here would mean hard-coding the URI in TypeScript. Left
+  as a flagged gap pending a decision on whether to switch the API to a short claim
+  type instead.
+- An `/explore` placeholder page was added because the bottom nav referenced it before
+  any such page existed - clicking it previously did nothing.
+
 ## 2026-09-04 — Switched the database to Neon
 
 Replaced the local Postgres container with [Neon](https://neon.com) (serverless

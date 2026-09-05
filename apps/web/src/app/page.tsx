@@ -5,6 +5,9 @@ import type { ClipboardEvent, FormEvent, KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiError } from '@/lib/api-client';
 import { requestOtp, verifyOtp } from '@/lib/auth';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 type Step = 'email' | 'otp';
 
@@ -18,6 +21,11 @@ const RESEND_COOLDOWN_SECONDS = 60;
  * has been sent. There is no live "is this domain valid" check as the student
  * types; the only real check is the request-otp call itself, and faking one before
  * that would be showing a checkmark for something never actually verified.
+ *
+ * Built on the shadcn-API components in src/components/ui/ (hand-authored for
+ * Tailwind v3 - see docs/TechStack.md) and the "Ink wash" brand palette. All the
+ * OTP logic below is unchanged from the original hand-rolled markup; only the
+ * rendered elements changed.
  */
 export default function HomePage() {
   const router = useRouter();
@@ -150,110 +158,108 @@ export default function HomePage() {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-6">
       <h1 className="text-3xl font-bold tracking-tight">ZEE</h1>
 
-      {step === 'email' ? (
-        <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-xl font-semibold">Join with your university email</h2>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Any verified institution, anywhere. We check your domain against the
-              university register.
-            </p>
-          </div>
+      <Card>
+        {step === 'email' ? (
+          <form onSubmit={handleEmailSubmit}>
+            <CardHeader>
+              <h2 className="text-xl font-semibold">Join with your university email</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Any verified institution, anywhere. We check your domain against the
+                university register.
+              </p>
+            </CardHeader>
 
-          <label className="flex flex-col gap-1 text-sm font-medium">
-            University email
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@university.edu"
-              className="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-base focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900"
-            />
-          </label>
+            <CardContent className="flex flex-col gap-4">
+              <label className="flex flex-col gap-1 text-sm font-medium">
+                University email
+                <Input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@university.edu"
+                />
+              </label>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-md bg-brand-600 px-4 py-2 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? 'Sending…' : 'Send code'}
-          </button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Sending…' : 'Send code'}
+              </Button>
 
-          <a
-            href="mailto:hello@zee.example?subject=Add%20my%20university"
-            className="text-center text-sm text-brand-600 underline"
-          >
-            Domain not listed? Request your university →
-          </a>
-        </form>
-      ) : (
-        <form onSubmit={(e) => void handleVerifySubmit(e)} className="flex flex-col gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Step 2 · Verify
-            </p>
-            <h2 className="text-xl font-semibold">Enter the 6-digit code</h2>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Sent to {email}.</p>
-          </div>
+              <Button asChild variant="link" className="h-auto p-0">
+                <a href="mailto:hello@zee.example?subject=Add%20my%20university">
+                  Domain not listed? Request your university →
+                </a>
+              </Button>
+            </CardContent>
+          </form>
+        ) : (
+          <form onSubmit={(e) => void handleVerifySubmit(e)}>
+            <CardHeader>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Step 2 · Verify
+              </p>
+              <h2 className="text-xl font-semibold">Enter the 6-digit code</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Sent to {email}.</p>
+            </CardHeader>
 
-          <div className="flex justify-between gap-2">
-            {digits.map((digit, index) => (
-              <input
-                key={index}
-                ref={(el) => {
-                  digitRefs.current[index] = el;
-                }}
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleDigitChange(index, e.target.value)}
-                onKeyDown={(e) => handleDigitKeyDown(index, e)}
-                onPaste={handleDigitPaste}
-                className="h-14 w-12 rounded-md border border-gray-300 bg-gray-50 text-center text-xl focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900"
-              />
-            ))}
-          </div>
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex justify-between gap-2">
+                {digits.map((digit, index) => (
+                  <Input
+                    key={index}
+                    ref={(el) => {
+                      digitRefs.current[index] = el;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleDigitChange(index, e.target.value)}
+                    onKeyDown={(e) => handleDigitKeyDown(index, e)}
+                    onPaste={handleDigitPaste}
+                    className="h-14 w-12 text-center text-xl"
+                  />
+                ))}
+              </div>
 
-          <p className="text-sm text-gray-500">
-            {resendSecondsLeft > 0 ? (
-              `Resend in 0:${String(resendSecondsLeft).padStart(2, '0')}`
-            ) : (
-              <button
+              <p className="text-sm text-muted-foreground">
+                {resendSecondsLeft > 0 ? (
+                  `Resend in 0:${String(resendSecondsLeft).padStart(2, '0')}`
+                ) : (
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={() => void sendCode()}
+                    disabled={isSubmitting}
+                    className="h-auto p-0"
+                  >
+                    Resend code
+                  </Button>
+                )}
+              </p>
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Verifying…' : 'Verify'}
+              </Button>
+
+              <Button
                 type="button"
-                onClick={() => void sendCode()}
-                disabled={isSubmitting}
-                className="text-brand-600 underline"
+                variant="link"
+                onClick={() => setStep('email')}
+                className="h-auto p-0 text-muted-foreground"
               >
-                Resend code
-              </button>
-            )}
-          </p>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-md bg-brand-600 px-4 py-2 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? 'Verifying…' : 'Verify'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setStep('email')}
-            className="text-center text-sm text-gray-500 underline"
-          >
-            Use a different email
-          </button>
-        </form>
-      )}
+                Use a different email
+              </Button>
+            </CardContent>
+          </form>
+        )}
+      </Card>
     </main>
   );
 }

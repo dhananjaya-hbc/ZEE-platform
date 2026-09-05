@@ -24,6 +24,23 @@ a reason.
 | **tailwindcss** | Utility CSS keeps styling next to markup. Chosen over CSS Modules because a small contributor team benefits more from a shared vocabulary than from scoped stylesheets. v3 rather than v4 — v4's CSS-first config is still unfamiliar to most contributors. |
 | **eslint** + **eslint-config-next** | Catches React and Next-specific mistakes the compiler cannot. |
 | **vitest** | Faster than Jest and shares Vite's transform pipeline. |
+| **radix-ui**, **class-variance-authority**, **lucide-react** | The primitives shadcn/ui components are built from — unstyled accessible behaviour (Radix), variant-driven class composition (cva), icons (Lucide). |
+| **tailwindcss-animate** | The Tailwind v3 animation plugin shadcn components expect. **Not** `tw-animate-css` — that is the v4-only equivalent shadcn's own installer reaches for by default, and it does not work here. |
+
+**shadcn/ui note:** components in `src/components/ui/` are **hand-authored**, not the
+literal output of `npx shadcn add`. The CLI's generated code (as of the version used to
+initialise this project) assumes Tailwind v4 throughout — arbitrary `--spacing()` calc
+calls, `in-data-[...]` variants, `color-mix(in oklch, ...)` — none of which this v3 setup
+can parse. Each component keeps the same name, props and colour tokens (`bg-primary`,
+`border-input`, etc.) shadcn expects, just written in plain classes that actually compile.
+Running `npx shadcn add <component>` again will regenerate v4-flavoured code that breaks
+the build - port it to v3 syntax by hand instead of using it verbatim.
+
+The colour tokens themselves (`--background`, `--primary`, `--border`, ...) are defined
+in `globals.css` as plain hex values, not shadcn's default oklch palette - `--primary` and
+`--ring` point at the Ink wash brand scale below; everything else mirrors the plain
+Tailwind gray shades already used by hand throughout the app, so a shadcn `<Card>` sits on
+the same surface colours as hand-built markup right next to it.
 
 **Version pins worth knowing:** Next is on 16.x, not the 15.1 originally planned —
 15.x has open advisories via `postcss`. `postcss` and `vitest` are pinned above their

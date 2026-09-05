@@ -89,40 +89,52 @@ hunting through a `Handlers/` directory of forty unrelated classes.
 ```
 apps/web/
 ├── package.json
-├── next.config.mjs             Security headers; PWA TODO
-├── tailwind.config.ts          "Ink wash" brand palette (monochrome, see TechStack.md)
-├── tsconfig.json               strict + noUncheckedIndexedAccess
-├── eslint.config.mjs           Flat config (v16 exports an array, not a function)
+├── components.json              shadcn/ui config — see TechStack.md
+├── next.config.mjs              Security headers; PWA TODO
+├── tailwind.config.ts           Maps shadcn tokens to CSS variables; "Ink wash"
+│                                 brand scale (monochrome) — see TechStack.md
+├── tsconfig.json                strict + noUncheckedIndexedAccess
+├── eslint.config.mjs            Flat config (v16 exports an array, not a function)
 ├── Dockerfile
-├── .env.example                WARNING: NEXT_PUBLIC_* is public
+├── .env.example                 WARNING: NEXT_PUBLIC_* is public
 │
 ├── public/
-│   ├── manifest.webmanifest    PWA manifest
-│   └── icons/README.md         Icons still to be produced
+│   ├── manifest.webmanifest     PWA manifest
+│   └── icons/README.md          Icons still to be produced
 │
 └── src/
     ├── app/
-    │   ├── layout.tsx          Root layout, PWA metadata, viewport
-    │   ├── globals.css         Tailwind layers
-    │   ├── page.tsx            Landing / sign-in
-    │   ├── api/session/        Route Handler — sets/clears the httpOnly session cookie
-    │   ├── feed/               Static visual mock (Ink wash palette). Deliberately
-    │   │                       OUTSIDE (app) below - it owns its own header and
-    │   │                       bottom nav rather than sharing AppLayout's chrome.
-    │   │                       Not wired to the API yet.
-    │   └── (app)/              Route group — shares a layout WITHOUT adding a
-    │       │                   path segment, so URLs stay /chatbot not /app/chatbot
-    │       ├── layout.tsx      Signed-in shell + nav
-    │       ├── chatbot/
-    │       ├── groups/
-    │       ├── messages/
-    │       └── profile/
-    ├── components/             Shared React components
+    │   ├── layout.tsx           Root layout, PWA metadata, viewport, Geist font
+    │   ├── globals.css          Tailwind layers + shadcn theme tokens (plain hex,
+    │   │                        Tailwind v3 compatible — see TechStack.md)
+    │   ├── page.tsx             Sign-in: institutional email → OTP → session cookie
+    │   ├── api/session/         Route Handler — sets/clears the httpOnly session cookie
+    │   └── (app)/               Route group — shares a layout WITHOUT adding a
+    │       │                    path segment, so URLs stay /feed not /app/feed
+    │       ├── layout.tsx       Shared header (AppHeader) + bottom nav (BottomNav)
+    │       ├── feed/            Static visual mock (Ink wash palette). Not wired
+    │       │                    to the API - GetFeedQuery/CreatePostCommand are
+    │       │                    still stubs.
+    │       ├── explore/         Placeholder
+    │       ├── chatbot/         Placeholder
+    │       ├── groups/          Placeholder
+    │       ├── messages/        Placeholder
+    │       └── profile/         Placeholder
+    ├── components/
+    │   ├── ui/                  shadcn-API components (Button, Input, Card, Badge) -
+    │   │                        hand-authored for Tailwind v3; see TechStack.md for why
+    │   ├── AppHeader.tsx         Shared top bar: logo, search, notifications, "New post"
+    │   ├── BottomNav.tsx         Shared bottom nav; highlights the active page
+    │   ├── SidebarCard.tsx       One feed sidebar section (title + content)
+    │   ├── SkeletonLine.tsx      Grey placeholder bar for unwired content
+    │   ├── AvatarPlaceholder.tsx Placeholder profile picture circle
+    │   └── PagePlaceholder.tsx   "Not built yet" body for scaffolded routes
     ├── lib/
-    │   ├── api-client.ts       ALL backend access goes through here
-    │   └── auth.ts             OTP flow; token storage decision documented
+    │   ├── api-client.ts        ALL backend access goes through here
+    │   ├── auth.ts               OTP flow; token storage decision documented
+    │   └── utils.ts              cn() — shadcn-style class merging
     └── types/
-        └── api.ts              TypeScript mirrors of the C# DTOs
+        └── api.ts               TypeScript mirrors of the C# DTOs
 ```
 
 ## `apps/ai-service` — the Python service

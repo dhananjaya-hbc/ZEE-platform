@@ -5,23 +5,15 @@
  * institutional address and redeeming it for a JWT:
  *
  *   1. POST /api/auth/request-otp  { email }
- *   2. POST /api/auth/verify-otp   { email, code }  ->  { accessToken }
+ *   2. POST /api/auth/verify-otp   { email, code }  ->  { accessToken, ... }
  *
- * TODO: Implement this module.
- *
- * Acceptance criteria:
- *   - requestOtp(email) and verifyOtp(email, code).
- *   - Expose the current session to components (a context provider is fine).
- *
- * TOKEN STORAGE — decide this deliberately, it is the security-relevant part:
- *   - localStorage is the easy option and is readable by any script that ends up
- *     on the page, so one XSS becomes full account takeover of every signed-in
- *     student.
- *   - An httpOnly, Secure, SameSite=Lax cookie set by a Next route handler is the
- *     safer default and works with the PWA. It needs CSRF protection on mutating
- *     requests, which the cookie approach makes straightforward.
- *   Recommend the cookie route. Whatever is chosen, write down why here.
+ * TOKEN STORAGE: an httpOnly cookie, set by app/api/session/route.ts. The token is
+ * never held in this module's state and never written to localStorage - it goes
+ * straight from the API response into the cookie via one fetch to our own route,
+ * and this module never touches it again.
  */
+
+import { request } from '@/lib/api-client';
 
 export interface Session {
   userId: string;
@@ -30,25 +22,69 @@ export interface Session {
   email: string;
 }
 
-/** TODO: Implement — POST /api/auth/request-otp. */
+/** Shape of a successful POST /api/auth/verify-otp response. */
+interface VerifyOtpResponse {
+  accessToken: string;
+  userId: string;
+  name: string;
+  email: string;
+  universityId: string;
+}
+
+/** Requests a one-time code be emailed to an institutional address. */
 export async function requestOtp(email: string): Promise<void> {
-  void email;
-  throw new Error('Not implemented.');
+  await request<void>('/api/auth/request-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
 }
 
-/** TODO: Implement — POST /api/auth/verify-otp, then persist the session. */
+/**
+ * Redeems a one-time code, signing the student in.
+ *
+ * Note the second fetch call below goes to '/api/session' - a relative, same-origin
+ * path to THIS Next.js app's own route handler - not through request() from
+ * api-client.ts, which would incorrectly prefix it with the .NET API's base URL.
+ */
 export async function verifyOtp(email: string, code: string): Promise<Session> {
-  void email;
-  void code;
-  throw new Error('Not implemented.');
+  const result = await request<VerifyOtpResponse>('/api/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  });
+
+  await fetch('/api/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessToken: result.accessToken }),
+  });
+
+  return {
+    userId: result.userId,
+    universityId: result.universityId,
+    name: result.name,
+    email: result.email,
+  };
 }
 
-/** TODO: Implement — returns the signed-in student, or null. */
+/**
+ * TODO: Implement — returns the signed-in student, or null.
+ *
+ * Needs a GET handler added to app/api/session/route.ts that reads the httpOnly
+ * cookie server-side and decodes the JWT payload. The wrinkle: the claim key for
+ * the student's id is not a short standard claim like "sub" - TokenService.cs issues
+ * it as ClaimTypes.NameIdentifier, which .NET represents as the long URI
+ * "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier". That is
+ * consistent and correct on the .NET side (it validates against that same string),
+ * but matching it here means hard-coding that URI in TypeScript, which is a smell
+ * worth fixing at the source - e.g. switching TokenService to the short "sub" claim
+ * and configuring JwtBearerOptions.MapInboundClaims = false - rather than working
+ * around it here. Left as a TODO pending that decision.
+ */
 export async function getSession(): Promise<Session | null> {
   throw new Error('Not implemented.');
 }
 
-/** TODO: Implement — clears the stored token. */
+/** Signs the student out by clearing the session cookie. */
 export async function signOut(): Promise<void> {
-  throw new Error('Not implemented.');
+  await fetch('/api/session', { method: 'DELETE' });
 }

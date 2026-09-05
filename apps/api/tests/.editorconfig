@@ -1,0 +1,21 @@
+# Analyzer rules relaxed for TEST projects only.
+#
+# This file sits in tests/ so it applies to the three test projects and nothing else -
+# production code under src/ keeps the full rule set.
+
+[*.cs]
+
+# CA1707: no underscores in member names.
+#
+# Suppressed here because Method_does_the_thing_when_condition is the established
+# convention for xUnit test names, and it is genuinely easier to read in a test runner's
+# output than MethodDoesTheThingWhenCondition. The rule targets public API surface, which
+# a test assembly does not have.
+dotnet_diagnostic.CA1707.severity = none
+
+# CA1861: constant arrays as arguments. InlineData attributes are full of them by design.
+dotnet_diagnostic.CA1861.severity = none
+
+# CA2007: ConfigureAwait(false). Test hosts have no synchronization context to deadlock on,
+# and requiring it on every await makes tests noisier without making them safer.
+dotnet_diagnostic.CA2007.severity = none

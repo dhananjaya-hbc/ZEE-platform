@@ -1,0 +1,139 @@
+# ZEE — local development stack.
+#
+#   docker compose -f infra/docker-compose.yml up --build
+#
+# Brings up Redis and all three services on one network.
+#
+# THERE IS NO DATABASE CONTAINER. ZEE uses Neon (serverless PostgreSQL), so the
+# database lives outside Compose and every environment — including yours — points
+# at a Neon branch. Create a free project at https://neon.com, then copy
+# infra/.env.example to infra/.env and set your connection strings.
+#
+# See docs/Database.md for the full setup, including how to give yourself an
+# isolated branch so you are not sharing a database with other contributors.
+
+name: zee
+
+services:
+  # ---------------------------------------------------------------------------
+  # Redis — caching and background job queue.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: zee-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [zee-net]
+
+  # ---------------------------------------------------------------------------
+  # AI service (Python / FastAPI).
+  #
+  # NOTE the port mapping: bound to 127.0.0.1 so it is reachable from your
+  # machine for /docs, but never from the wider network. In production this
+  # service gets no published port at all — only the API talks to it.
+  # ---------------------------------------------------------------------------
+  ai-service:
+    build:
+      context: ../apps/ai-service
+      dockerfile: Dockerfile
+    container_name: zee-ai-service
+    restart: unless-stopped
+    environment:
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required - see infra/.env.example}
+      # Unused in Phase 1 (the service touches no database) but wired now so Phase 2
+      # retrieval has somewhere to read from. Same Neon branch as the API.
+      DATABASE_URL: ${NEON_DATABASE_URL:?NEON_DATABASE_URL is required - see infra/.env.example}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:${AI_SERVICE_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks: [zee-net]
+
+  # ---------------------------------------------------------------------------
+  # Main API (.NET).
+  #
+  # Reaches the AI service at http://ai-service:8000 — Compose's DNS resolves
+  # service names on the shared network, so no IPs or host ports are involved.
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    container_name: zee-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      # Neon connection string in Npgsql (key=value) form. Required — the API
+      # refuses to start without it.
+      ConnectionStrings__Postgres: ${NEON_NPGSQL_CONNECTION_STRING:?NEON_NPGSQL_CONNECTION_STRING is required - create a Neon project and see infra/.env.example}
+      ConnectionStrings__Redis: redis:6379
+      Jwt__Key: ${JWT_KEY:?JWT_KEY is required - see infra/.env.example}
+      Jwt__Issuer: ${JWT_ISSUER:-zee}
+      AiService__BaseUrl: http://ai-service:8000
+      AiService__InternalKey: ${INTERNAL_API_KEY}
+      Cors__AllowedOrigins__0: ${WEB_ORIGIN:-http://localhost:3000}
+    ports:
+      - "${API_PORT:-5080}:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      ai-service:
+        # started, not healthy: the API must come up even when the AI service is
+        # down. Every AI call has a fallback, so blocking startup on it would make
+        # an optional dependency a hard one.
+        condition: service_started
+    healthcheck:
+      # /health is the LIVENESS endpoint and runs no database check. Polling
+      # /health/ready here every 10s would keep Neon's compute permanently awake.
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [zee-net]
+
+  # ---------------------------------------------------------------------------
+  # Web app (Next.js).
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+      args:
+        # Baked in at BUILD time, not runtime: Next inlines NEXT_PUBLIC_* values
+        # into the client bundle, so changing this later needs a rebuild.
+        NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://localhost:5080}
+    container_name: zee-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_started
+    networks: [zee-net]
+
+volumes:
+  redis-data:
+
+networks:
+  zee-net:
+    driver: bridge

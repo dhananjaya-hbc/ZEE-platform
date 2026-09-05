@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Domain layer has ZERO dependencies. No EF Core, no MediatR, no ASP.NET.
+
+    This is not stylistic. It is what makes the business rules testable in isolation
+    and keeps them from quietly acquiring a database shape. If you find yourself
+    wanting to add a PackageReference here, the thing you are building almost
+    certainly belongs in Application or Infrastructure instead.
+  -->
+
+</Project>

@@ -1,0 +1,56 @@
+# EditorConfig for the ZEE monorepo — https://editorconfig.org
+# Applies across the .NET API, the Next.js web app and the Python AI service so
+# formatting never depends on whose editor opened the file.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+
+[*.{cs,csx}]
+indent_size = 4
+
+# --- C# language conventions ------------------------------------------------
+csharp_new_line_before_open_brace = all
+csharp_prefer_braces = true:warning
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+dotnet_sort_system_directives_first = true
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:warning
+dotnet_style_readonly_field = true:warning
+
+# --- Analyzer suppressions --------------------------------------------------
+# CA1716: "Event" collides with the reserved word 'event'.
+#
+# Suppressed on purpose. The rule exists so types stay usable from languages
+# where the identifier is reserved and cannot be escaped — chiefly VB.NET. ZEE
+# is C#-only and this domain model is never consumed cross-language, so the rule
+# buys nothing here, while the alternatives all cost something real: renaming the
+# entity to CampusEvent puts the code out of step with the documented data model
+# and the API routes, and C# itself already handles the collision with `@event`.
+# Revisit if a VB.NET or F#-consumer ever appears.
+dotnet_diagnostic.CA1716.severity = none
+
+# CA1848 (use LoggerMessage delegates) is a hot-path allocation optimisation.
+# Worth it in a tight loop, not worth the ceremony in scaffolding and startup code.
+dotnet_diagnostic.CA1848.severity = none
+
+[*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,css,scss,yml,yaml}]
+indent_size = 2
+
+[*.py]
+indent_size = 4
+max_line_length = 100
+
+[Makefile]
+indent_style = tab

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    Api: the HTTP shell. Controllers, middleware, DI wiring, Program.cs.
+
+    It references Infrastructure only so Program.cs can call
+    AddInfrastructure(). No controller should ever reference an EF Core type
+    directly - controllers dispatch to MediatR and return the result.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Zee.Application\Zee.Application.csproj" />
+    <ProjectReference Include="..\Zee.Infrastructure\Zee.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Makes internal types visible to the integration test project so
+         WebApplicationFactory<Program> can find the generated entry point. -->
+    <InternalsVisibleTo Include="Zee.Api.IntegrationTests" />
+  </ItemGroup>
+
+</Project>

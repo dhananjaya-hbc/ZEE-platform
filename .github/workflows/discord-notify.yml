@@ -1,0 +1,133 @@
+name: Discord Notifications
+
+# Posts repository activity to the project's Discord channel.
+#
+# SETUP (see the project setup guideline):
+#   1. Discord: Channel Settings -> Integrations -> Webhooks -> New Webhook.
+#      Name it "Repository" and give it a project avatar. Copy the URL.
+#   2. GitHub: Settings -> Secrets and variables -> Actions -> New repository secret.
+#      Name: DISCORD_WEBHOOK_URL     Value: <the copied URL>
+#
+# The webhook URL is a secret: anyone holding it can post to the channel as this
+# bot. It is never echoed in logs below.
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    types: [opened, reopened, closed]
+  issues:
+    types: [opened, closed, reopened]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialised per ref so messages arrive in the order the events happened.
+  group: discord-notify-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    name: Post to Discord
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # Skips cleanly on forks, where secrets are not available, instead of failing
+    # every external contributor's first pull request with a red X.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - name: Build message
+        id: message
+        env:
+          EVENT: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref_name }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ACTION: ${{ github.event.action }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+        run: |
+          # User-controlled text (commit messages, PR and issue titles) is passed
+          # through the environment and serialised with jq, never interpolated
+          # into the shell or into JSON by hand. A title containing a quote or a
+          # backtick would otherwise break the payload — or run.
+          case "$EVENT" in
+            push)
+              content="📦 **push** to \`$REF\` by **$ACTOR**"
+              detail="$COMMIT_MSG"
+              url="$COMMIT_URL"
+              ;;
+            pull_request)
+              if [ "$ACTION" = "closed" ] && [ "$PR_MERGED" = "true" ]; then
+                content="🎉 **PR #$PR_NUMBER merged** by **$ACTOR**"
+              elif [ "$ACTION" = "closed" ]; then
+                content="🔒 **PR #$PR_NUMBER closed** by **$ACTOR**"
+              else
+                content="🔀 **PR #$PR_NUMBER $ACTION** by **$ACTOR**"
+              fi
+              detail="$PR_TITLE"
+              url="$PR_URL"
+              ;;
+            issues)
+              content="🐛 **Issue #$ISSUE_NUMBER $ACTION** by **$ACTOR**"
+              detail="$ISSUE_TITLE"
+              url="$ISSUE_URL"
+              ;;
+            release)
+              content="🚀 **Release published** by **$ACTOR**"
+              detail="$RELEASE_NAME"
+              url="$RELEASE_URL"
+              ;;
+            *)
+              content="ℹ️ **$EVENT** by **$ACTOR**"
+              detail=""
+              url="https://github.com/$REPO"
+              ;;
+          esac
+
+          jq -nc \
+            --arg content "$content" \
+            --arg detail "$detail" \
+            --arg url "$url" \
+            --arg repo "$REPO" \
+            '{
+              username: "Repository",
+              content: $content,
+              embeds: [{
+                title: (if ($detail | length) > 0 then ($detail | .[0:250]) else $repo end),
+                url: $url,
+                color: 6533870,
+                footer: { text: $repo }
+              }]
+            }' > payload.json
+
+      - name: Send to Discord
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::warning::DISCORD_WEBHOOK_URL is not set — skipping notification."
+            echo "Add it under Settings > Secrets and variables > Actions."
+            exit 0
+          fi
+
+          # --fail makes curl exit non-zero on an HTTP error, which a plain POST
+          # would swallow. --silent keeps the URL out of the log on success.
+          curl --fail --silent --show-error \
+            -H "Content-Type: application/json" \
+            -X POST \
+            --data @payload.json \
+            "$WEBHOOK_URL"

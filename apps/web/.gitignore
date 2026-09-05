@@ -1,0 +1,12 @@
+# Next.js build output
+.next/
+out/
+
+# Generated at build time
+next-env.d.ts
+
+# Dependencies
+node_modules/
+
+# Local env
+.env*.local

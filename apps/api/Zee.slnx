@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Zee.Api/Zee.Api.csproj" />
+    <Project Path="src/Zee.Application/Zee.Application.csproj" />
+    <Project Path="src/Zee.Domain/Zee.Domain.csproj" />
+    <Project Path="src/Zee.Infrastructure/Zee.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Zee.Api.IntegrationTests/Zee.Api.IntegrationTests.csproj" />
+    <Project Path="tests/Zee.Application.UnitTests/Zee.Application.UnitTests.csproj" />
+    <Project Path="tests/Zee.Domain.UnitTests/Zee.Domain.UnitTests.csproj" />
+  </Folder>
+</Solution>

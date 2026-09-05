@@ -33,6 +33,17 @@ default resolved ranges for the same reason. `npm audit` is clean and CI enforce
 deferred: caching an authenticated feed wrongly is worse than not caching it, since a
 shared device could serve one student's posts to the next.
 
+**Color theme — "Ink wash".** A deliberate monochrome scale rather than a hue, configured as the `brand` color in `apps/web/tailwind.config.ts`:
+
+| Token | Hex | Use |
+| --- | --- | --- |
+| `brand-100` | `#cfcfcf` | Subtle backgrounds, light chips |
+| `brand-500` | `#7d7d7d` | Borders, focus rings, secondary accents |
+| `brand-600` | `#545454` | Primary buttons and links |
+| `brand-700` | `#252525` | Hover states, darkest accents |
+
+Referenced from components as `bg-brand-600`, `text-brand-500`, etc. — change the palette in one place (`tailwind.config.ts`) and every component picks it up.
+
 ## Main backend — `apps/api`
 
 | Package | Why |

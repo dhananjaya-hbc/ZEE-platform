@@ -1,133 +1,223 @@
 name: Discord Notifications
 
-# Posts repository activity to the project's Discord channel.
-#
-# SETUP (see the project setup guideline):
-#   1. Discord: Channel Settings -> Integrations -> Webhooks -> New Webhook.
-#      Name it "Repository" and give it a project avatar. Copy the URL.
-#   2. GitHub: Settings -> Secrets and variables -> Actions -> New repository secret.
-#      Name: DISCORD_WEBHOOK_URL     Value: <the copied URL>
-#
-# The webhook URL is a secret: anyone holding it can post to the channel as this
-# bot. It is never echoed in logs below.
-
 on:
+  pull_request:
+    types: [opened, closed, reopened, ready_for_review, assigned, unassigned, labeled, unlabeled, review_requested]
+  issues:
+    types: [opened, closed, reopened, assigned, unassigned, labeled, unlabeled]
   push:
     branches: [main, dev]
-  pull_request:
-    types: [opened, reopened, closed]
-  issues:
-    types: [opened, closed, reopened]
-  release:
-    types: [published]
-
-permissions:
-  contents: read
-
-concurrency:
-  # Serialised per ref so messages arrive in the order the events happened.
-  group: discord-notify-${{ github.ref }}
-  cancel-in-progress: false
+  create: # Fires for new branches and tags (filtered below)
+  delete: # Fires for deleted branches and tags (filtered below)
+  fork:
 
 jobs:
   notify:
-    name: Post to Discord
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    # Skips cleanly on forks, where secrets are not available, instead of failing
-    # every external contributor's first pull request with a red X.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Skip tag create/delete events — only process branch operations
+    if: >
+      (github.event_name != 'create' && github.event_name != 'delete') ||
+      github.event.ref_type == 'branch'
 
     steps:
-      - name: Build message
-        id: message
+      - name: Send Discord Notification
         env:
-          EVENT: ${{ github.event_name }}
-          ACTOR: ${{ github.actor }}
-          REPO: ${{ github.repository }}
-          REF: ${{ github.ref_name }}
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-          COMMIT_URL: ${{ github.event.head_commit.url }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_MERGED: ${{ github.event.pull_request.merged }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
-          ISSUE_URL: ${{ github.event.issue.html_url }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ACTION: ${{ github.event.action }}
-          RELEASE_NAME: ${{ github.event.release.name }}
-          RELEASE_URL: ${{ github.event.release.html_url }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # User-controlled text (commit messages, PR and issue titles) is passed
-          # through the environment and serialised with jq, never interpolated
-          # into the shell or into JSON by hand. A title containing a quote or a
-          # backtick would otherwise break the payload — or run.
-          case "$EVENT" in
-            push)
-              content="📦 **push** to \`$REF\` by **$ACTOR**"
-              detail="$COMMIT_MSG"
-              url="$COMMIT_URL"
-              ;;
-            pull_request)
-              if [ "$ACTION" = "closed" ] && [ "$PR_MERGED" = "true" ]; then
-                content="🎉 **PR #$PR_NUMBER merged** by **$ACTOR**"
-              elif [ "$ACTION" = "closed" ]; then
-                content="🔒 **PR #$PR_NUMBER closed** by **$ACTOR**"
-              else
-                content="🔀 **PR #$PR_NUMBER $ACTION** by **$ACTOR**"
-              fi
-              detail="$PR_TITLE"
-              url="$PR_URL"
-              ;;
-            issues)
-              content="🐛 **Issue #$ISSUE_NUMBER $ACTION** by **$ACTOR**"
-              detail="$ISSUE_TITLE"
-              url="$ISSUE_URL"
-              ;;
-            release)
-              content="🚀 **Release published** by **$ACTOR**"
-              detail="$RELEASE_NAME"
-              url="$RELEASE_URL"
-              ;;
-            *)
-              content="ℹ️ **$EVENT** by **$ACTOR**"
-              detail=""
-              url="https://github.com/$REPO"
-              ;;
-          esac
+          set -e
 
-          jq -nc \
-            --arg content "$content" \
-            --arg detail "$detail" \
-            --arg url "$url" \
-            --arg repo "$REPO" \
-            '{
-              username: "Repository",
-              content: $content,
-              embeds: [{
-                title: (if ($detail | length) > 0 then ($detail | .[0:250]) else $repo end),
-                url: $url,
-                color: 6533870,
-                footer: { text: $repo }
-              }]
-            }' > payload.json
-
-      - name: Send to Discord
-        env:
-          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: |
-          if [ -z "$WEBHOOK_URL" ]; then
-            echo "::warning::DISCORD_WEBHOOK_URL is not set — skipping notification."
-            echo "Add it under Settings > Secrets and variables > Actions."
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL secret is not set. Skipping notification."
             exit 0
           fi
 
-          # --fail makes curl exit non-zero on an HTTP error, which a plain POST
-          # would swallow. --silent keeps the URL out of the log on success.
-          curl --fail --silent --show-error \
-            -H "Content-Type: application/json" \
+          REPO="${{ github.repository }}"
+          REPO_NAME="${REPO##*/}"
+          REPO_URL="${{ github.event.repository.html_url }}"
+          ACTOR="${{ github.actor }}"
+          EVENT_NAME="${{ github.event_name }}"
+
+          TITLE=""
+          TITLE_URL=""
+          DESCRIPTION=""
+          COLOR=3447003 # Default Blue
+
+          case "$EVENT_NAME" in
+
+            pull_request)
+              PR_ACTION="${{ github.event.action }}"
+              PR_NUM="${{ github.event.pull_request.number }}"
+              PR_URL="${{ github.event.pull_request.html_url }}"
+              BASE="${{ github.event.pull_request.base.ref }}"
+              HEAD="${{ github.event.pull_request.head.ref }}"
+              MERGED="${{ github.event.pull_request.merged }}"
+              TITLE_URL="$PR_URL"
+
+              case "$PR_ACTION" in
+                opened|reopened)
+                  TITLE="New PR #${PR_NUM} into '${BASE}'"
+                  DESCRIPTION="**${ACTOR}** opened a pull request from \`${HEAD}\` into \`${BASE}\` in **${REPO_NAME}**."
+                  COLOR=3066993 # Green
+                  ;;
+                closed)
+                  if [ "$MERGED" = "true" ]; then
+                    TITLE="PR #${PR_NUM} Merged into '${BASE}'"
+                    DESCRIPTION="**${ACTOR}**'s pull request was merged from \`${HEAD}\` into \`${BASE}\` in **${REPO_NAME}**."
+                    COLOR=10181046 # Purple
+                  else
+                    TITLE="PR #${PR_NUM} Closed (Unmerged)"
+                    DESCRIPTION="Pull request from \`${HEAD}\` into \`${BASE}\` was closed without merging in **${REPO_NAME}**."
+                    COLOR=15158332 # Red
+                  fi
+                  ;;
+                ready_for_review)
+                  TITLE="PR #${PR_NUM} Ready for Review"
+                  DESCRIPTION="**${ACTOR}** marked pull request into \`${BASE}\` as ready for review in **${REPO_NAME}**."
+                  COLOR=15844367 # Gold
+                  ;;
+                assigned)
+                  ASSIGNEE="${{ github.event.assignee.login }}"
+                  TITLE="PR #${PR_NUM} Assigned"
+                  DESCRIPTION="**${ACTOR}** assigned **${ASSIGNEE}** to pull request #${PR_NUM} in **${REPO_NAME}**."
+                  COLOR=3447003 # Blue
+                  ;;
+                unassigned)
+                  ASSIGNEE="${{ github.event.assignee.login }}"
+                  TITLE="PR #${PR_NUM} Unassigned"
+                  DESCRIPTION="**${ACTOR}** removed **${ASSIGNEE}** from pull request #${PR_NUM} in **${REPO_NAME}**."
+                  COLOR=9807270 # Grey
+                  ;;
+                labeled)
+                  LABEL="${{ github.event.label.name }}"
+                  TITLE="PR #${PR_NUM} Labeled"
+                  DESCRIPTION="**${ACTOR}** added label \`${LABEL}\` to pull request #${PR_NUM} in **${REPO_NAME}**."
+                  COLOR=15844367 # Gold
+                  ;;
+                unlabeled)
+                  LABEL="${{ github.event.label.name }}"
+                  TITLE="PR #${PR_NUM} Label Removed"
+                  DESCRIPTION="**${ACTOR}** removed label \`${LABEL}\` from pull request #${PR_NUM} in **${REPO_NAME}**."
+                  COLOR=9807270 # Grey
+                  ;;
+                review_requested)
+                  REVIEWER="${{ github.event.requested_reviewer.login }}"
+                  TITLE="Review Requested on PR #${PR_NUM}"
+                  DESCRIPTION="**${ACTOR}** requested a review from **${REVIEWER}** on pull request #${PR_NUM} in **${REPO_NAME}**."
+                  COLOR=15844367 # Gold
+                  ;;
+              esac
+              ;;
+
+            issues)
+              ISSUE_ACTION="${{ github.event.action }}"
+              ISSUE_NUM="${{ github.event.issue.number }}"
+              ISSUE_URL="${{ github.event.issue.html_url }}"
+              ISSUE_TITLE_TEXT="${{ github.event.issue.title }}"
+              TITLE_URL="$ISSUE_URL"
+
+              case "$ISSUE_ACTION" in
+                opened)
+                  TITLE="New Issue #${ISSUE_NUM}: ${ISSUE_TITLE_TEXT}"
+                  DESCRIPTION="**${ACTOR}** opened issue #${ISSUE_NUM} in **${REPO_NAME}**."
+                  COLOR=3066993 # Green
+                  ;;
+                reopened)
+                  TITLE="Issue #${ISSUE_NUM} Reopened"
+                  DESCRIPTION="**${ACTOR}** reopened issue #${ISSUE_NUM} in **${REPO_NAME}**."
+                  COLOR=15844367 # Gold
+                  ;;
+                closed)
+                  TITLE="Issue #${ISSUE_NUM} Closed"
+                  DESCRIPTION="**${ACTOR}** closed issue #${ISSUE_NUM} in **${REPO_NAME}**."
+                  COLOR=15158332 # Red
+                  ;;
+                assigned)
+                  ASSIGNEE="${{ github.event.assignee.login }}"
+                  TITLE="Issue #${ISSUE_NUM} Assigned"
+                  DESCRIPTION="**${ACTOR}** assigned **${ASSIGNEE}** to issue #${ISSUE_NUM} in **${REPO_NAME}**."
+                  COLOR=3447003 # Blue
+                  ;;
+                unassigned)
+                  ASSIGNEE="${{ github.event.assignee.login }}"
+                  TITLE="Issue #${ISSUE_NUM} Unassigned"
+                  DESCRIPTION="**${ACTOR}** removed **${ASSIGNEE}** from issue #${ISSUE_NUM} in **${REPO_NAME}**."
+                  COLOR=9807270 # Grey
+                  ;;
+                labeled)
+                  LABEL="${{ github.event.label.name }}"
+                  TITLE="Issue #${ISSUE_NUM} Labeled"
+                  DESCRIPTION="**${ACTOR}** added label \`${LABEL}\` to issue #${ISSUE_NUM} in **${REPO_NAME}**."
+                  COLOR=15844367 # Gold
+                  ;;
+                unlabeled)
+                  LABEL="${{ github.event.label.name }}"
+                  TITLE="Issue #${ISSUE_NUM} Label Removed"
+                  DESCRIPTION="**${ACTOR}** removed label \`${LABEL}\` from issue #${ISSUE_NUM} in **${REPO_NAME}**."
+                  COLOR=9807270 # Grey
+                  ;;
+              esac
+              ;;
+
+            push)
+              BRANCH="${GITHUB_REF#refs/heads/}"
+              COMPARE_URL="${{ github.event.compare }}"
+              COMMITS_JSON='${{ toJson(github.event.commits) }}'
+              COUNT=$(echo "$COMMITS_JSON" | jq 'length')
+              PLURAL=$([ "$COUNT" -eq 1 ] && echo "" || echo "s")
+
+              TITLE="New Commit${PLURAL} on '${BRANCH}'"
+              TITLE_URL="$COMPARE_URL"
+              DESCRIPTION="**${ACTOR}** pushed ${COUNT} commit${PLURAL} to \`${BRANCH}\` in **${REPO_NAME}**."
+              COLOR=3447003 # Blue
+              ;;
+
+            create)
+              BRANCH="${{ github.event.ref }}"
+              TITLE="New Branch Created: '${BRANCH}'"
+              TITLE_URL="https://github.com/${REPO}/tree/${BRANCH}"
+              DESCRIPTION="**${ACTOR}** created branch \`${BRANCH}\` in **${REPO_NAME}**."
+              COLOR=3066993 # Green
+              ;;
+
+            delete)
+              BRANCH="${{ github.event.ref }}"
+              TITLE="Branch Deleted: '${BRANCH}'"
+              TITLE_URL="$REPO_URL"
+              DESCRIPTION="**${ACTOR}** deleted branch \`${BRANCH}\` in **${REPO_NAME}**."
+              COLOR=15158332 # Red
+              ;;
+
+            fork)
+              FORK_URL="${{ github.event.forkee.html_url }}"
+              TITLE="Repository Forked"
+              TITLE_URL="$FORK_URL"
+              DESCRIPTION="**${ACTOR}** forked **${REPO_NAME}**."
+              COLOR=15844367 # Gold
+              ;;
+
+          esac
+
+          if [ -z "$TITLE" ]; then
+            echo "No message configured for this event. Skipping."
+            exit 0
+          fi
+
+          # Construct clean JSON Embed payload
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg url "$TITLE_URL" \
+            --arg desc "$DESCRIPTION" \
+            --arg color "$COLOR" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $url,
+                description: $desc,
+                color: ($color | tonumber)
+              }]
+            }')
+
+          curl -sf -H "Content-Type: application/json" \
             -X POST \
-            --data @payload.json \
-            "$WEBHOOK_URL"
+            -d "$PAYLOAD" \
+            "$DISCORD_WEBHOOK_URL"

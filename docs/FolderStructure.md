@@ -90,7 +90,7 @@ hunting through a `Handlers/` directory of forty unrelated classes.
 apps/web/
 ├── package.json
 ├── next.config.mjs             Security headers; PWA TODO
-├── tailwind.config.ts          Placeholder brand palette — swap for the real one
+├── tailwind.config.ts          "Ink wash" brand palette (monochrome, see TechStack.md)
 ├── tsconfig.json               strict + noUncheckedIndexedAccess
 ├── eslint.config.mjs           Flat config (v16 exports an array, not a function)
 ├── Dockerfile
@@ -105,10 +105,14 @@ apps/web/
     │   ├── layout.tsx          Root layout, PWA metadata, viewport
     │   ├── globals.css         Tailwind layers
     │   ├── page.tsx            Landing / sign-in
+    │   ├── api/session/        Route Handler — sets/clears the httpOnly session cookie
+    │   ├── feed/               Static visual mock (Ink wash palette). Deliberately
+    │   │                       OUTSIDE (app) below - it owns its own header and
+    │   │                       bottom nav rather than sharing AppLayout's chrome.
+    │   │                       Not wired to the API yet.
     │   └── (app)/              Route group — shares a layout WITHOUT adding a
-    │       │                   path segment, so URLs stay /feed not /app/feed
+    │       │                   path segment, so URLs stay /chatbot not /app/chatbot
     │       ├── layout.tsx      Signed-in shell + nav
-    │       ├── feed/
     │       ├── chatbot/
     │       ├── groups/
     │       ├── messages/

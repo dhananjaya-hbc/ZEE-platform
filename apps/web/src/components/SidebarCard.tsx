@@ -21,7 +21,7 @@ export function SidebarCard({
   return (
     <Card className={className}>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-semibold uppercase tracking-wide text-brand-600">
+        <CardTitle className="text-sm font-semibold uppercase tracking-wide text-primary">
           {title}
         </CardTitle>
         {action}

@@ -142,9 +142,9 @@ expected and fine; it's not the same thing as onboarding a university on the rea
 shared platform.
 
 > **This is your own branch, not the shared database.** Onboarding a university on the
-> real platform is deliberately owner-reviewed and manual — see `README.md`'s
-> [Auth flow](../README.md#auth-flow) section for why. Nothing below grants anyone else
-> that access; it only seeds data into the private branch you already control.
+> real platform is deliberately owner-reviewed and manual — see
+> [Architecture.md](Architecture.md#authentication) for why. Nothing below grants anyone
+> else that access; it only seeds data into the private branch you already control.
 
 There is no seed script or endpoint (that's the same deliberate gap, applied
 consistently). Insert the row directly, against your branch's connection string:

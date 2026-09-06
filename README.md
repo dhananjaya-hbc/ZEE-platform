@@ -1,66 +1,56 @@
-# ZEE
+<div align="center">
+<img src="banner.jpeg" alt="ZEE — Global Campus Network">
+</div>
+
+<div align="center">
 
 **A global campus social network — open source, multi-university, student-first.**
 
-ZEE connects students across campuses worldwide: a shared feed, course and club groups,
-competitions and team recruiting, campus events, achievements, and direct messaging.
-Access is gated by **institutional email verification**, so every account is tied to a
-real, verified university.
+</div>
 
 ---
 
-## 🚧 Project status: Phase 1 scaffolding
+## Why ZEE?
 
-**This repository is a scaffold, not a working product yet.** The structure, contracts,
-tests and infrastructure are in place. Most method bodies are `TODO` stubs carrying
-acceptance criteria, waiting to be implemented.
+Campus life today is scattered across generic chat apps and Discord servers — no
+verified community, no shared structure for course groups or competitions, and no way
+to discover students, groups or events beyond your own campus.
 
-| | |
-| --- | --- |
-| ✅ Builds and runs | The whole stack starts with one `docker compose up` |
-| ✅ CI is green | 70 API tests: 38 passing, 32 skipped stubs, 0 failures |
-| ✅ Institutional sign-in works | OTP request/verify, real Neon database, JWT issued and verified |
-| ⚠️ Everything else returns **501** | Routed and reachable, handler not implemented yet |
+ZEE fixes this with three things:
 
-**This is deliberate.** The point is that there is a lot of well-specified,
-self-contained work available to pick up. Every stub states exactly what it must do and
-has a matching test written as a skipped fact:
-
-```bash
-grep -rn "TODO:" apps/ --include=*.cs --include=*.ts --include=*.py
-```
-
-Start at **[CONTRIBUTING.md](CONTRIBUTING.md)**.
-
-### Phase 1 vs Phase 2
-
-**Phase 1 (this repository): no AI features.** The feed is plain reverse-chronological.
-The AI service exists with real routes, real auth and real schemas, but its logic
-returns nothing yet.
-
-**Phase 2 (later): the real RAG chatbot, student matching, and ranked feed** — built on
-actual student usage data, because none of the three can be evaluated without it.
-`/apps/ai-service` is owner-maintained; see
-[CONTRIBUTING.md](CONTRIBUTING.md#what-is-reserved) and [docs/AI_DESIGN.md](docs/AI_DESIGN.md).
+1. **Verify:** Institutional email OTP ties every account to a real, onboarded
+   university. No passwords, no fake accounts — proving you can read mail at a verified
+   campus domain *is* the credential.
+2. **Connect:** A shared feed, course/club/dorm groups, cross-campus interest groups,
+   competitions with team recruiting, campus events with RSVPs, achievements, and direct
+   messaging — structured for academic life, not another generic timeline.
+3. **Discover *(Phase 2)*:** A RAG campus assistant, student matching, and personalised
+   feed ranking — deferred until real usage data exists to actually evaluate them
+   against.
 
 ---
 
-## Contents
+## Features
 
-- [Architecture](#architecture)
-- [Repository layout](#repository-layout)
-- [Quick start](#quick-start)
-- [Running services individually](#running-services-individually)
-- [Environment variables](#environment-variables)
-- [Auth flow](#auth-flow)
-- [Testing](#testing)
-- [Documentation](#documentation)
-- [Contributing](#contributing)
-- [License](#license)
+* **Institutional Verification:** A one-time code to a verified university inbox is the
+  only credential. Domain matching is exact, never a suffix — no lookalike-domain
+  loophole.
+* **Global, Cross-Campus Network:** Course, club and dorm groups scoped to one
+  university; GlobalInterest groups and open competitions that span every campus on the
+  platform.
+* **Structured Campus Life:** A purpose-built feed, competitions with team recruiting,
+  campus events with RSVPs, and a self-reported achievements record.
+* **Direct Messaging:** One-to-one conversations between students.
+* **AI Campus Assistant *(Phase 2)*:** A chatbot, student matching, and ranked feed —
+  real routes and schemas exist today; the logic is owner-maintained and lands once
+  there's usage data to build it on.
+* **Open, Well-Specified Scaffold:** Every unimplemented piece ships with acceptance
+  criteria and a matching skipped test — contributing means filling in a clear spec, not
+  reverse-engineering intent.
 
 ---
 
-## Architecture
+## Architecture Overview
 
 ```
                     ┌──────────────────────────────┐
@@ -84,203 +74,110 @@ actual student usage data, because none of the three can be evaluated without it
 └───────────────┘      └─────────────┘  └─────────────────────────┘
 ```
 
-| Decision | Why |
+Full detail — layer boundaries, request lifecycle, data model, the AI boundary, known
+gaps: **[docs/Architecture.md](docs/Architecture.md)**.
+
+---
+
+## Project status: Phase 1 scaffolding
+
+**This repository is a scaffold, not a working product yet.** Structure, contracts,
+tests and infrastructure are in place; most method bodies are `TODO` stubs carrying
+acceptance criteria, waiting to be implemented.
+
+| | |
 | --- | --- |
-| Separate AI service | Python/ML has a completely different dependency and deploy profile from .NET. Phase 2 work cannot destabilise the platform. |
-| The browser never calls the AI service | It has no public route. All AI traffic proxies through the API, which holds the internal key server-side. |
-| `IAiServiceClient` in the Application layer | Handlers depend on the interface; Infrastructure supplies the HTTP implementation. Phase 2 changes the Python side only. |
-| pgvector enabled on day one | Turning it on later needs elevated rights at an awkward moment. Unused extensions cost nothing. |
-| Universities are data, not config | Email-domain allowlists live in a `University` table. Nothing is hardcoded to one campus. |
-| No passwords anywhere | Proving you can read mail at a verified campus domain *is* the credential. |
+| ✅ Builds and runs | The whole stack starts with one `docker compose up` |
+| ✅ CI is green | 70 API tests: 38 passing, 32 skipped stubs, 0 failures |
+| ✅ Institutional sign-in works | OTP request/verify, real Neon database, JWT issued and verified |
+| ⚠️ Everything else returns **501** | Routed and reachable, handler not implemented yet |
 
-Full detail: **[docs/Architecture.md](docs/Architecture.md)**.
+**This is deliberate** — a lot of well-specified, self-contained work is available to
+pick up, each with a matching skipped test:
 
-## Repository layout
-
-```
-ZEE-platform/
-├── apps/
-│   ├── web/                  Next.js frontend (PWA)
-│   ├── api/                  ASP.NET Core backend — Clean Architecture
-│   │   ├── src/
-│   │   │   ├── Zee.Domain/          entities, enums, repository interfaces
-│   │   │   ├── Zee.Application/     MediatR commands/queries, validators, DTOs
-│   │   │   ├── Zee.Infrastructure/  EF Core, repositories, AiServiceClient
-│   │   │   └── Zee.Api/             controllers, middleware, Program.cs
-│   │   └── tests/                   one test project per layer
-│   └── ai-service/           Python FastAPI service — owner-maintained
-├── infra/
-│   └── docker-compose.yml    Postgres + Redis + all three services
-├── docs/                     architecture, tech stack, folder structure, AI design
-├── .github/workflows/        CI per app + Discord notifications
-├── CONTRIBUTING.md
-└── README.md
+```bash
+grep -rn "TODO:" apps/ --include=*.cs --include=*.ts --include=*.py
 ```
 
-File-by-file tour: [docs/FolderStructure.md](docs/FolderStructure.md).
+Or browse the 29 open issues on this repo, already ordered by dependency.
 
-## Quick start
+---
 
-**Prerequisites:** Docker Desktop (or Docker Engine + Compose v2). Nothing else.
+## Quickstart
+
+**Prerequisites:** Node.js `>= 20`, Docker Desktop (or Docker Engine + Compose v2), and a
+free [Neon](https://neon.com) account — **ZEE has no local database container**; every
+environment, including development, points at a Neon branch.
+
+### 1. Clone & configure
 
 ```bash
 git clone https://github.com/dhananjaya-hbc/ZEE-platform.git
 cd ZEE-platform
 
 cp infra/.env.example infra/.env
-# Edit infra/.env:
-#   - NEON_NPGSQL_CONNECTION_STRING and NEON_DATABASE_URL — from a free Neon
-#     project at https://neon.com. See docs/Database.md.
-#   - INTERNAL_API_KEY and JWT_KEY:
-#       openssl rand -hex 32     # INTERNAL_API_KEY
-#       openssl rand -base64 48  # JWT_KEY
-
-docker compose -f infra/docker-compose.yml up --build
+# Fill in NEON_NPGSQL_CONNECTION_STRING, NEON_DATABASE_URL (see docs/Database.md),
+# INTERNAL_API_KEY (openssl rand -hex 32), JWT_KEY (openssl rand -base64 48).
 ```
 
-**ZEE has no local database container** — it runs on
-[Neon](https://neon.com) (serverless PostgreSQL) in every environment, including
-development. See [docs/Database.md](docs/Database.md) for setup, why, and how to give
-yourself an isolated branch.
+### 2. Seed a university (needed to sign in)
+
+Your Neon branch starts with zero onboarded universities — see
+**[Seeding a university](docs/Database.md#seeding-a-university)** before testing sign-in.
+
+### 3. Start the stack
+
+```bash
+docker compose -f infra/docker-compose.yml up --build
+```
 
 | Service | URL |
 | --- | --- |
 | Web app | http://localhost:3000 |
-| API | http://localhost:5080 |
-| API OpenAPI document | http://localhost:5080/openapi/v1.json |
-| API liveness | http://localhost:5080/health |
-| API readiness (hits the DB) | http://localhost:5080/health/ready |
+| API + OpenAPI doc | http://localhost:5080 · http://localhost:5080/openapi/v1.json |
+| API liveness / readiness | http://localhost:5080/health · /health/ready |
 | AI service docs | http://localhost:8000/docs |
-| Redis | `localhost:6379` |
-| Database | your Neon branch — see [docs/Database.md](docs/Database.md) |
 
-> **Note:** `/api/auth/request-otp` and `/api/auth/verify-otp` work end to end against
-> a real database. Everything else currently returns **501 Not Implemented** — that is
-> the scaffolding reporting itself honestly. `/health` works, and `/api/feed` correctly
-> returns 401 without a token.
+> `/api/auth/request-otp` and `/api/auth/verify-otp` work end to end against a real
+> database. Everything else currently returns **501 Not Implemented** — the scaffolding
+> reporting itself honestly.
 
-## Running services individually
+Prefer running one app at a time, or need environment-variable details? See
+**[CONTRIBUTING.md](CONTRIBUTING.md#local-setup)**.
 
-Start just the datastores:
-
-```bash
-docker compose -f infra/docker-compose.yml up redis   # the database is Neon, not a container
-```
-
-**API** (.NET 10)
-
-```bash
-cd apps/api
-dotnet restore
-dotnet run --project src/Zee.Api      # http://localhost:5080
-```
-
-`appsettings.Development.json` already points at the Compose datastores, so no `.env`
-is needed for local runs.
-
-**Web** (Node 20+)
-
-```bash
-cd apps/web
-cp .env.example .env.local
-npm install
-npm run dev                            # http://localhost:3000
-```
-
-**AI service** (Python 3.12)
-
-```bash
-cd apps/ai-service
-cp .env.example .env
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-## Environment variables
-
-Every app ships a `.env.example`. Copy it, never edit it with real values, never commit
-the result — `.gitignore` blocks `.env` files.
-
-| File | Covers |
-| --- | --- |
-| `infra/.env.example` | Compose: Neon connection strings, Redis, ports, and the shared internal key |
-| `apps/api/.env.example` | Connection strings, JWT signing, AI service URL + internal key |
-| `apps/web/.env.example` | Public API base URL — note every `NEXT_PUBLIC_*` value ships to the browser |
-| `apps/ai-service/.env.example` | The internal key it validates, database URL for Phase 2 |
-
-`AiService__InternalKey` (API) and `INTERNAL_API_KEY` (AI service) **must match** — that
-shared secret is the only thing standing between the AI service and anyone who can reach
-its port. Compose injects one value into both so they cannot drift.
-
-## Auth flow
-
-Signup and login are the same flow: **a one-time code to a verified institutional inbox.**
-
-```
-1. POST /api/auth/request-otp   { email: "ada@mit.edu" }
-        │
-        ├─ Extract the domain → look up University by verified email domain
-        ├─ Unknown domain → 404 "university not onboarded"   (onboarding is manual)
-        └─ Known domain   → generate 6 digits, HASH it, store with a 10-minute
-                            expiry, email the plaintext code
-
-2. POST /api/auth/verify-otp    { email, code }
-        │
-        ├─ Check consumed → expired → attempt cap, BEFORE comparing
-        ├─ Constant-time hash comparison, max 5 attempts
-        └─ Valid → create or load the User, issue a JWT
-
-3. Client sends  Authorization: Bearer <jwt>  on every subsequent request.
-```
-
-Domain matching is **exact, never a suffix** — `notmit.edu` ends with `mit.edu` under a
-naive `EndsWith`, which would let anyone registering a lookalike domain join that
-campus. There is a regression test for exactly this.
-
-University onboarding is **owner-reviewed and manual**. There is no self-serve endpoint;
-a new `University` row is inserted deliberately. That is the anti-abuse boundary for the
-whole platform.
-
-> In Development the OTP email is not sent — the code goes to the API logs.
-
-## Testing
-
-```bash
-cd apps/api        && dotnet test
-cd apps/web        && npm run lint && npm run typecheck && npm run build
-cd apps/ai-service && ruff check . && pytest
-```
-
-Tests for unimplemented stubs are **skipped, not failing**, so CI is green on a fresh
-clone — a red baseline would make it impossible to tell your own breakage from the
-scaffolding's. Implementing a stub means removing its `Skip`.
-
-CI runs per app on every PR, with path filters, so a web-only change does not wait on a
-.NET build.
+---
 
 ## Documentation
 
 | Doc | What's in it |
 | --- | --- |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | **Start here.** Layer guide, a full worked example, how to claim a stub |
-| [docs/Database.md](docs/Database.md) | Setting up Neon, branching, pooled vs direct endpoints, migrations |
-| [docs/Architecture.md](docs/Architecture.md) | Layer boundaries, request lifecycle, data model, auth, feed, known gaps |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | **Start here.** Local setup, layer guide, a full worked example, how to claim a stub |
+| [docs/Architecture.md](docs/Architecture.md) | Layer boundaries, request lifecycle, data model, auth flow, the feed, known gaps |
+| [docs/Database.md](docs/Database.md) | Setting up Neon, branching, seeding a university, migrations |
 | [docs/TechStack.md](docs/TechStack.md) | Every dependency and the reason it's there |
 | [docs/FolderStructure.md](docs/FolderStructure.md) | Annotated directory tour |
 | [docs/AI_DESIGN.md](docs/AI_DESIGN.md) | The Phase 2 plan and the constraints it must respect |
 | [docs/Logs.md](docs/Logs.md) | Development log — decisions and their reasoning |
+
+---
 
 ## Contributing
 
 Contributions are very welcome — the scaffolding exists so there is clear work to pick
 up. Read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
-Two things to know up front:
+Three things to know up front:
 
-- **Branch from `dev`, PR into `dev`.** `main` is the released state.
+- **`main` is the released state and protected** — merges require a reviewed PR, no
+  direct pushes, even from maintainers. **Branch from `dev`, PR into `dev`.**
 - **`/apps/ai-service` is owner-maintained.** Bug fixes, tooling and infrastructure PRs
   are welcome; the Phase 2 AI logic is reserved. Open an issue to discuss instead.
+- **Check issue dependencies first.** Several open issues are marked "Blocked by" —
+  GitHub shows this on the issue itself before you start reading.
+
+Report bugs or propose features on the [Issues](https://github.com/dhananjaya-hbc/ZEE-platform/issues) tracker.
+
+---
 
 ## License
 

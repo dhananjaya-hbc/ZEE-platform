@@ -1,25 +1,44 @@
-# Folder Structure
+# File Structure & Code Organization Rules
 
-Annotated tour of the repository. For *why* it is shaped this way, see
-[Architecture.md](Architecture.md).
+A practical, direct guide for contributors on organizing, adding, and modifying code
+across **`apps/api`**, **`apps/web`**, and **`apps/ai-service`**. For *why* it is shaped
+this way, see [Architecture.md](Architecture.md).
 
-```
-ZEE-platform/
-├── .github/workflows/          CI — one workflow per app, plus Discord notifications
-├── apps/
-│   ├── api/                    ASP.NET Core backend (Clean Architecture)
-│   ├── web/                    Next.js frontend (PWA)
-│   └── ai-service/             Python FastAPI service — OWNER-MAINTAINED
-├── docs/                       This documentation
-├── infra/                      Docker Compose and database init
-├── .editorconfig               Shared formatting + analyzer suppressions
-├── .gitignore
-├── CONTRIBUTING.md
-├── LICENSE
-└── README.md
-```
+**A note before you start:** ZEE is not a NestJS + per-route-colocated-Next.js stack —
+if you've used a folder-structure guide from a project like that before, don't carry its
+specific patterns over here. The backend is **Clean Architecture** (four strictly
+layered projects, not feature modules), and the frontend keeps shared UI centralized
+rather than colocated per route. Both are explained below.
 
-## `apps/api` — the .NET backend
+---
+
+## 1. Golden Rules
+
+1. **A feature is a folder, at the layer that owns it.** In `apps/api`, everything for
+   one use case lives together: `Posts/Commands/CreatePost/` holds the command, its
+   validator, and its handler — never a `Handlers/` junk drawer of forty unrelated
+   classes. In `apps/ai-service`, a feature spans three peer folders instead
+   (`routers/` + `schemas/` + `services/`) — see [§4](#4-ai-service-guidelines-appsai-service).
+2. **Orchestrators stay thin.** Controllers (`apps/api`) and `page.tsx` files
+   (`apps/web`) bind, dispatch, and shape a response or render — never business logic,
+   raw queries, or an `if` of real consequence. If you're writing one of those inside a
+   controller or a page component, it belongs one layer in.
+3. **Naming follows the language, not one house style.** C#: PascalCase, one public
+   type per file, named after it. TypeScript: PascalCase for components
+   (`AppHeader.tsx`), camelCase for everything else (`api-client.ts` is the one
+   deliberate kebab-case exception — see below). Python: snake_case, enforced by `ruff`.
+4. **Interfaces live where they're used, not where they're implemented.** `IPostRepository`
+   is declared in `Zee.Domain` (the consumer) and implemented in `Zee.Infrastructure`
+   (the provider) — never the reverse. This is what lets Infrastructure depend on
+   Application/Domain instead of the other way around.
+
+---
+
+## 2. Backend Guidelines (`apps/api`)
+
+The .NET API is **four strictly layered projects**, dependencies pointing inward only —
+enforced by `.csproj` references, not convention. Full explanation, including *why*:
+[CONTRIBUTING.md § The four layers](../CONTRIBUTING.md#the-four-layers).
 
 ```
 apps/api/
@@ -80,11 +99,38 @@ apps/api/
     └── Zee.Api.IntegrationTests/   Real pipeline, in-memory database
 ```
 
-**A feature is a folder.** Everything for "create a post" lives under
-`Posts/Commands/CreatePost/`: the command, its validator, its handler. You are never
-hunting through a `Handlers/` directory of forty unrelated classes.
+### Contributor workflow: adding a backend feature
 
-## `apps/web` — the Next.js frontend
+1. **Ask "does Domain need a new rule?"** first — if a check must hold no matter how the
+   object is reached, it's an entity invariant, not handler logic. Often the answer is
+   no and Domain is untouched.
+2. Create a feature folder under `Zee.Application/<Feature>/Commands/<Verb><Feature>/`
+   (or `Queries/`): the command/query record, its `AbstractValidator`, its
+   `IRequestHandler`. Neither needs registering — `AddApplication()` scans the assembly.
+3. Only touch `Zee.Infrastructure` if the feature needs a new repository method or EF
+   query — most features reuse what already exists.
+4. Add a thin controller action in `Zee.Api/Controllers/` — bind, `Sender.Send(...)`,
+   shape the response. No logic.
+5. Write tests alongside the layer you changed (`Zee.Domain.UnitTests`,
+   `Zee.Application.UnitTests`).
+
+A full worked example, code included: [CONTRIBUTING.md § Worked example](../CONTRIBUTING.md#worked-example-adding-delete-a-post).
+
+### Deleting a backend feature
+
+Delete the feature folder under `Zee.Application/<Feature>/`, its controller actions,
+and its EF configuration/repository methods if nothing else uses them. Nothing needs
+unregistering — assembly scanning means there's no central list to edit.
+
+---
+
+## 3. Frontend Guidelines (`apps/web`)
+
+**Unlike a per-route `_components`/`_services`/`_models` colocation pattern, ZEE
+centralizes shared frontend code.** A route's `page.tsx` composes components from
+`src/components/`; it does not own a private folder of its own. This is deliberate for
+Phase 1's route count — revisit it if a route grows enough private, single-use pieces
+that centralizing them starts to hurt.
 
 ```
 apps/web/
@@ -130,16 +176,39 @@ apps/web/
     │   ├── AvatarPlaceholder.tsx Placeholder profile picture circle
     │   └── PagePlaceholder.tsx   "Not built yet" body for scaffolded routes
     ├── lib/
-    │   ├── api-client.ts        ALL backend access goes through here
+    │   ├── api-client.ts        ALL backend access goes through here — a component
+    │   │                        never calls fetch() directly against the API
     │   ├── auth.ts               OTP flow; token storage decision documented
     │   └── utils.ts              cn() — shadcn-style class merging
     └── types/
         └── api.ts               TypeScript mirrors of the C# DTOs
 ```
 
-## `apps/ai-service` — the Python service
+### Contributor workflow: adding a page/route
 
-**Owner-maintained.** See [../CONTRIBUTING.md](../CONTRIBUTING.md#what-is-reserved).
+1. Create `src/app/(app)/<route-name>/page.tsx`. Route segment names are lowercase —
+   that's a Next.js constraint, not a house-style choice.
+2. Need a new API call? Add it to `src/lib/api-client.ts`'s `api` object — never call
+   `fetch()` against the API directly from a component. Add the response shape to
+   `src/types/api.ts` if it's new.
+3. Need UI? Reach for `src/components/ui/` (shadcn primitives) or an existing shared
+   component in `src/components/` first. Only add a new component to `src/components/`
+   if nothing existing fits — there is currently no per-route private component folder
+   to put it in instead.
+4. Wire data into the page. Keep `page.tsx` itself thin — fetching/orchestration only.
+
+### Deleting a page/route
+
+Delete the route folder under `src/app/(app)/<route-name>/`. Check
+`src/components/BottomNav.tsx` and `AppHeader.tsx` for a now-dead link to it — nothing
+removes those automatically, since navigation isn't generated from the route tree.
+
+---
+
+## 4. AI Service Guidelines (`apps/ai-service`)
+
+**Owner-maintained.** See [../CONTRIBUTING.md](../CONTRIBUTING.md#what-is-reserved)
+before proposing changes here.
 
 ```
 apps/ai-service/
@@ -157,15 +226,25 @@ apps/ai-service/
 │   │   └── security.py         X-Internal-Key check (constant-time)
 │   ├── routers/                One module per endpoint group + health
 │   ├── schemas/                Pydantic models — the wire contract
-│   └── services/               The logic. Mocked in Phase 1.
+│   └── services/                The logic. Mocked in Phase 1.
 └── tests/
 ```
 
-`routers/` handles HTTP, `services/` handles logic, `schemas/` defines the contract.
-Keeping them apart is what lets Phase 2 replace the service functions without touching
-a route or a schema — and therefore without touching the .NET side at all.
+`routers/` handles HTTP, `services/` handles logic, `schemas/` defines the contract —
+three peer folders, not one feature folder, because keeping them apart is what lets
+Phase 2 replace a service function without touching a route, a schema, or the .NET side
+at all.
 
-## `infra`
+### Contributor workflow: adding an endpoint (mock work only — see the note above)
+
+1. Define the request/response shape in `app/schemas/<feature>.py`.
+2. Implement the (mocked, Phase 1) logic in `app/services/<feature>_service.py`.
+3. Add the route in `app/routers/<feature>.py`, depending on the service function.
+4. Wire the router into `app/main.py` if it's a new router module.
+
+---
+
+## 5. `infra`
 
 ```
 infra/
@@ -188,6 +267,27 @@ schema has exactly one source of truth.
 | `discord-notify.yml` | posts pushes, PRs, issues and releases to Discord |
 
 Path filters mean a docs-only PR triggers nothing, and a web PR does not wait on .NET.
+
+---
+
+## 6. Summary Table
+
+| Location | Responsibility | Example |
+| :--- | :--- | :--- |
+| `apps/api/src/Zee.Domain/Entities/` | Entities, invariants, no dependencies | `Post.cs` |
+| `apps/api/src/Zee.Domain/Repositories/` | Repository *interfaces* only | `IPostRepository.cs` |
+| `apps/api/src/Zee.Application/<Feature>/Commands\|Queries/` | One use case: command/query + validator + handler | `Posts/Commands/CreatePost/` |
+| `apps/api/src/Zee.Infrastructure/Persistence/Repositories/` | Repository *implementations* (EF Core) | `PostRepository.cs` |
+| `apps/api/src/Zee.Infrastructure/Persistence/Configurations/` | One EF mapping per entity | `PostConfiguration.cs` |
+| `apps/api/src/Zee.Api/Controllers/` | Thin HTTP endpoints — bind, dispatch, shape | `PostsController.cs` |
+| `apps/web/src/app/(app)/<route>/` | One page per route, thin orchestration | `feed/page.tsx` |
+| `apps/web/src/components/ui/` | Shadcn-API primitives, hand-authored for v3 | `button.tsx` |
+| `apps/web/src/components/` | Shared, cross-route components | `AppHeader.tsx` |
+| `apps/web/src/lib/api-client.ts` | The only place that calls the backend | — |
+| `apps/web/src/types/` | TypeScript mirrors of the C# DTOs | `api.ts` |
+| `apps/ai-service/app/routers/` | HTTP routes only | `chatbot.py` |
+| `apps/ai-service/app/services/` | Logic — mocked in Phase 1 | `chatbot_service.py` |
+| `apps/ai-service/app/schemas/` | Pydantic wire-contract models | `chatbot.py` |
 
 ## Conventions
 

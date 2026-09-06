@@ -143,7 +143,7 @@ docker compose -f infra/docker-compose.yml up --build
 > reporting itself honestly.
 
 Prefer running one app at a time, or need environment-variable details? See
-**[CONTRIBUTING.md](CONTRIBUTING.md#local-setup)**.
+**[CONTRIBUTING.md](CONTRIBUTING.md#running-one-app-at-a-time)**.
 
 ---
 

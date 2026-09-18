@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { decodeSessionFromToken } from '@/lib/jwt';
 
 /**
  * Session cookie used across the app. Exported so any future code that needs to
@@ -45,6 +46,23 @@ export async function POST(request: Request) {
   return new NextResponse(null, { status: 204 });
 }
 
+/**
+ * Returns the signed-in student session, or null if unauthenticated or expired.
+ *
+ * Reads the httpOnly cookie server-side and decodes the JWT payload.
+ */
+export async function GET() {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
+
+  if (!sessionCookie?.value) {
+    return NextResponse.json(null);
+  }
+
+  const session = decodeSessionFromToken(sessionCookie.value);
+  return NextResponse.json(session);
+}
+
 /** Signs the student out by clearing the session cookie. */
 export async function DELETE() {
   const cookieStore = await cookies();
@@ -52,3 +70,4 @@ export async function DELETE() {
 
   return new NextResponse(null, { status: 204 });
 }
+

@@ -18,8 +18,8 @@ import { request } from '@/lib/api-client';
 export interface Session {
   userId: string;
   universityId: string;
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
 }
 
 /** Shape of a successful POST /api/auth/verify-otp response. */
@@ -67,21 +67,21 @@ export async function verifyOtp(email: string, code: string): Promise<Session> {
 }
 
 /**
- * TODO: Implement — returns the signed-in student, or null.
+ * Returns the signed-in student, or null.
  *
- * Needs a GET handler added to app/api/session/route.ts that reads the httpOnly
- * cookie server-side and decodes the JWT payload. The wrinkle: the claim key for
- * the student's id is not a short standard claim like "sub" - TokenService.cs issues
- * it as ClaimTypes.NameIdentifier, which .NET represents as the long URI
- * "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier". That is
- * consistent and correct on the .NET side (it validates against that same string),
- * but matching it here means hard-coding that URI in TypeScript, which is a smell
- * worth fixing at the source - e.g. switching TokenService to the short "sub" claim
- * and configuring JwtBearerOptions.MapInboundClaims = false - rather than working
- * around it here. Left as a TODO pending that decision.
+ * Calls GET /api/session to read the httpOnly cookie server-side and decode the
+ * JWT payload.
  */
 export async function getSession(): Promise<Session | null> {
-  throw new Error('Not implemented.');
+  try {
+    const res = await fetch('/api/session');
+    if (!res.ok) {
+      return null;
+    }
+    return (await res.json()) as Session | null;
+  } catch {
+    return null;
+  }
 }
 
 /** Signs the student out by clearing the session cookie. */

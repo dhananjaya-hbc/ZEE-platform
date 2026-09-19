@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { GET, SESSION_COOKIE_NAME } from './route';
+import { GET, SESSION_COOKIE_NAME } from '@/app/api/session/route';
 
 const mockGet = vi.fn();
 vi.mock('next/headers', () => ({

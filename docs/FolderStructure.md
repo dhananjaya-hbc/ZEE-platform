@@ -178,7 +178,12 @@ apps/web/
     ├── lib/
     │   ├── api-client.ts        ALL backend access goes through here — a component
     │   │                        never calls fetch() directly against the API
-    │   ├── auth.ts               OTP flow; token storage decision documented
+    │   ├── auth.ts              OTP flow; getSession() calls GET /api/session
+    │   ├── auth-server.ts       getServerSession() — reads the session cookie
+    │   │                        directly in Server Components, no HTTP hop
+    │   ├── jwt.ts               Decodes the session cookie's JWT payload; handles
+    │   │                        both a short "sub" claim and .NET's long
+    │   │                        ClaimTypes.NameIdentifier URI
     │   └── utils.ts              cn() — shadcn-style class merging
     └── types/
         └── api.ts               TypeScript mirrors of the C# DTOs

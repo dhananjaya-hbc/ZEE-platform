@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeSessionFromToken, isJwtExpired } from './jwt';
+import { decodeSessionFromToken, isJwtExpired } from '@/lib/jwt';
 
 function makeToken(payload: Record<string, unknown>): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');

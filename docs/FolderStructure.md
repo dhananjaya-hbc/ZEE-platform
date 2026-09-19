@@ -182,6 +182,16 @@ apps/web/
     │   └── utils.ts              cn() — shadcn-style class merging
     └── types/
         └── api.ts               TypeScript mirrors of the C# DTOs
+
+tests/                            Mirrors src/'s shape, same as apps/api/tests/
+├── app/
+│   ├── (app)/
+│   │   └── layout.test.tsx       Tests the signed-in layout's redirect guard
+│   └── api/session/
+│       └── session.test.ts       Tests the GET /api/session route handler
+└── lib/
+    ├── auth-server.test.ts       Tests getServerSession()
+    └── jwt.test.ts               Tests JWT decoding, claim compatibility, expiration
 ```
 
 ### Contributor workflow: adding a page/route

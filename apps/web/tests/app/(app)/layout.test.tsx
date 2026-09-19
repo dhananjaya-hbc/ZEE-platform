@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import AppLayout from './layout';
+import AppLayout from '@/app/(app)/layout';
 
 const mockRedirect = vi.fn();
 vi.mock('next/navigation', () => ({

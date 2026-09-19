@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getServerSession } from './auth-server';
+import { getServerSession } from '@/lib/auth-server';
 import { SESSION_COOKIE_NAME } from '@/app/api/session/route';
 
 const mockGet = vi.fn();
